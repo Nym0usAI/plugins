@@ -15,12 +15,16 @@
             let doc = parser.parseFromString(html, 'text/html');
             let items = [];
 
-            // Найти карточки фильмов (пример: ссылки внутри блоков)
-            doc.querySelectorAll('a[href*="/qartulad"], a[href*=".html"]').forEach(a => {
+            doc.querySelectorAll('.result-item a').forEach(a => {
               let href = a.href;
-              let title = a.textContent.trim();
-              if (title && href) {
-                items.push({ title, url: href });
+              let title = a.querySelector('.title') ? a.querySelector('.title').textContent.trim() : a.textContent.trim();
+              let poster = a.querySelector('img') ? a.querySelector('img').src : '';
+              if (href && title) {
+                items.push({
+                  title: title,
+                  url: href,
+                  poster: poster
+                });
               }
             });
 
@@ -37,7 +41,6 @@
           .then(html => {
             let parser = new DOMParser();
             let doc = parser.parseFromString(html, 'text/html');
-            // Ищем iframe с плеером
             let iframe = doc.querySelector('iframe');
             if (iframe && iframe.src) {
               callback({
@@ -46,7 +49,6 @@
                 subtitles: false
               });
             } else {
-              // Альтернатив — video tag
               let video = doc.querySelector('video source');
               if (video && video.src) {
                 callback({

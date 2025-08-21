@@ -1,11 +1,19 @@
 ({
     site: "mykadri.tv",
-    version: "1.0",
+    version: "1.1",
     author: "Alex Boyka",
 
     search: async function(query) {
-        let url = "https://mykadri.tv/index.php?do=search&subaction=search&story=" + encodeURIComponent(query);
-        let html = await http.get(url);
+        let url = "https://mykadri.tv/index.php?do=search";
+
+        // отправляем POST, как на сайте
+        let html = await http.post(url, {
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: "subaction=search&story=" + encodeURIComponent(query)
+        });
+
         let doc = new DOMParser().parseFromString(html, "text/html");
 
         let results = [];

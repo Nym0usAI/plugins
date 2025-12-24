@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         InterfaceLAMPA Extended
-// @version      1.0.0
-// @description  Add ribbon position control to Lampa interface
+// @version      1.1.0
+// @description  Ribbon position + description control for Lampa interface
 // @author       ChatGPT
 // ==/UserScript==
 
 (function () {
-    // ========== Настройки ==========
 
+    /* ================= НАСТРОЙКИ ================= */
+
+    // --- Положение ленты ---
     Lampa.SettingsApi.addParam({
         component: 'interface',
         param: {
@@ -22,55 +24,113 @@
         },
         field: {
             name: 'Положение ленты',
-            description: 'Контролирует вертикальное положение постеров'
+            description: 'Вертикальное положение постеров'
         },
         onChange: function () {
             Lampa.Settings.update();
-            applyRibbonPosition();
+            applyStyles();
         }
     });
 
-    // ========== Функция применения позиции ==========
+    // --- Показывать описание ---
+    Lampa.SettingsApi.addParam({
+        component: 'interface',
+        param: {
+            name: 'ShowDescription',
+            type: 'trigger',
+            default: true
+        },
+        field: {
+            name: 'Показывать описание',
+            description: 'Описание фильма/сериала на главной'
+        },
+        onChange: function () {
+            Lampa.Settings.update();
+            applyStyles();
+        }
+    });
 
-    function applyRibbonPosition() {
-        let heightValue = '20'; // default
+    // --- Количество строк описания ---
+    Lampa.SettingsApi.addParam({
+        component: 'interface',
+        param: {
+            name: 'DescriptionLines',
+            type: 'select',
+            values: {
+                1: '1 строка',
+                2: '2 строки',
+                3: '3 строки',
+                4: '4 строки'
+            },
+            default: 4
+        },
+        field: {
+            name: 'Строки описания',
+            description: 'Сколько строк текста показывать'
+        },
+        onChange: function () {
+            Lampa.Settings.update();
+            applyStyles();
+        }
+    });
+
+    /* ================= ПРИМЕНЕНИЕ СТИЛЕЙ ================= */
+
+    function applyStyles() {
+
+        /* --- ЛЕНТА --- */
+        let heightValue = '20';
 
         switch (Lampa.Storage.field('RibbonPosition')) {
-            case 'high':
-                heightValue = '16';
-                break;
-            case 'middle':
-                heightValue = '20';
-                break;
-            case 'low':
-                heightValue = '24';
-                break;
+            case 'high': heightValue = '16'; break;
+            case 'middle': heightValue = '20'; break;
+            case 'low': heightValue = '24'; break;
         }
 
-        // Внедряем CSS
+        /* --- ОПИСАНИЕ --- */
+        let showDesc = Lampa.Storage.field('ShowDescription');
+        let lines = Lampa.Storage.field('DescriptionLines') || 4;
+
+        let descCSS = showDesc
+            ? `
+                display: -webkit-box;
+                -webkit-line-clamp: ${lines};
+                line-clamp: ${lines};
+                -webkit-box-orient: vertical;
+              `
+            : `
+                display: none !important;
+              `;
+
         let style = `
-            <style id="custom-ribbon-position">
+            <style id="custom-interface-extended">
+
+                /* Положение ленты */
                 .new-interface-info {
                     height: ${heightValue}em !important;
                 }
+
+                /* Описание */
+                .new-interface-info__description {
+                    ${descCSS}
+                }
+
             </style>
         `;
 
-        // Удаляем старый
-        $('body').find('#custom-ribbon-position').remove();
-        // Добавляем новый
+        // удалить старый стиль
+        $('#custom-interface-extended').remove();
+        // добавить новый
         $('body').append(style);
     }
 
-    // ========== Инициализация при старте ==========
+    /* ================= ИНИЦИАЛИЗАЦИЯ ================= */
 
-    applyRibbonPosition();
+    applyStyles();
 
-    // ========== Перехват рендера интерфейса ==========
-
-    // Если интерфейс динамически перерисовывается,
-    // то применяем позицию после рендера постеров
+    // повторно применять при перерисовке интерфейса
     Lampa.Listener.follow('full', function () {
-        applyRibbonPosition();
+        applyStyles();
     });
+
 })();

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         InterfaceLAMPA Extended
-// @version      1.1.0
-// @description  Ribbon position + description control for Lampa interface
+// @version      1.3.0
+// @description  Ribbon position + description lines control for Lampa interface
 // @author       ChatGPT
 // ==/UserScript==
 
@@ -32,24 +32,6 @@
         }
     });
 
-    // --- Показывать описание ---
-    Lampa.SettingsApi.addParam({
-        component: 'interface',
-        param: {
-            name: 'ShowDescription',
-            type: 'trigger',
-            default: true
-        },
-        field: {
-            name: 'Показывать описание',
-            description: 'Описание фильма/сериала на главной'
-        },
-        onChange: function () {
-            Lampa.Settings.update();
-            applyStyles();
-        }
-    });
-
     // --- Количество строк описания ---
     Lampa.SettingsApi.addParam({
         component: 'interface',
@@ -60,13 +42,15 @@
                 1: '1 строка',
                 2: '2 строки',
                 3: '3 строки',
-                4: '4 строки'
+                4: '4 строки',
+                5: '5 строк',
+                6: '6 строк'
             },
-            default: 4
+            default: 5
         },
         field: {
             name: 'Строки описания',
-            description: 'Сколько строк текста показывать'
+            description: 'Количество строк текста описания'
         },
         onChange: function () {
             Lampa.Settings.update();
@@ -88,19 +72,7 @@
         }
 
         /* --- ОПИСАНИЕ --- */
-        let showDesc = Lampa.Storage.field('ShowDescription');
-        let lines = Lampa.Storage.field('DescriptionLines') || 4;
-
-        let descCSS = showDesc
-            ? `
-                display: -webkit-box;
-                -webkit-line-clamp: ${lines};
-                line-clamp: ${lines};
-                -webkit-box-orient: vertical;
-              `
-            : `
-                display: none !important;
-              `;
+        let lines = Lampa.Storage.field('DescriptionLines') || 5;
 
         let style = `
             <style id="custom-interface-extended">
@@ -110,9 +82,12 @@
                     height: ${heightValue}em !important;
                 }
 
-                /* Описание */
+                /* Описание: настраиваемое количество строк */
                 .new-interface-info__description {
-                    ${descCSS}
+                    display: -webkit-box !important;
+                    -webkit-line-clamp: ${lines};
+                    line-clamp: ${lines};
+                    -webkit-box-orient: vertical;
                 }
 
             </style>
@@ -128,7 +103,7 @@
 
     applyStyles();
 
-    // повторно применять при перерисовке интерфейса
+    // повторное применение при перерисовке главного экрана
     Lampa.Listener.follow('full', function () {
         applyStyles();
     });

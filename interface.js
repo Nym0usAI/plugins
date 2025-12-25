@@ -831,3 +831,99 @@
     if (!window.plugin_interface_ready) startPlugin();
 
 })();
+
+// ==UserScript==
+// @name         Lampa Poster Orientation Switch
+// @version      1.0.0
+// @description  Toggle between vertical and horizontal posters in Lampa interface
+// @author       ChatGPT
+// ==/UserScript==
+
+
+(function () {
+'use strict';
+
+
+/* ================= НАСТРОЙКИ ================= */
+
+var STORAGE_KEY = 'poster_orientation'; // vertical | horizontal
+
+function isVertical() {
+    return Lampa.Storage.get(STORAGE_KEY, 'vertical') === 'vertical';
+}
+
+function toggleOrientation() {
+    Lampa.Storage.set(STORAGE_KEY, isVertical() ? 'horizontal' : 'vertical');
+    Lampa.Noty.show(isVertical() ? 'Вертикальные постеры' : 'Горизонтальные постеры');
+    Lampa.Activity.reload();
+}
+
+/* ================= ЛОГИКА ================= */
+
+var originalPrepare = window.prepareLineData;
+
+window.prepareLineData = function (element) {
+    if (!element) return;
+    if (Array.isArray(element.results)) {
+        Lampa.Utils.extendItemsParams(element.results, {
+            style: {
+                name: isVertical() ? 'poster' : 'wide'
+            }
+        });
+    }
+    if (typeof originalPrepare === 'function') originalPrepare(element);
+};
+
+var OriginalInteractionLine = Lampa.InteractionLine;
+
+Lampa.InteractionLine = function (element, params) {
+    params = params || {};
+    params.card_wide = !isVertical();
+    return new OriginalInteractionLine(element, params);
+};
+
+/* ================= СТИЛИ ================= */
+
+function addStyles() {
+    var style = document.createElement('style');
+    style.innerHTML = `
+    .new-interface .card.card--poster {
+        width: 11.5em !important;
+    }
+    .new-interface .card.card--poster .card__view {
+        padding-bottom: 150% !important;
+    }
+    .new-interface .card.card--poster + .card-more .card-more__box {
+        padding-bottom: 150% !important;
+    }
+    `;
+    document.head.appendChild(style);
+}
+
+/* ================= НАСТРОЙКА ================= */
+
+function addSetting() {
+    Lampa.SettingsApi.addParam({
+        component: 'interface',
+        param: {
+            name: 'poster_switch',
+            type: 'button',
+            label: 'Формат постеров',
+            onClick: toggleOrientation
+        }
+    });
+}
+
+/* ================= INIT ================= */
+
+Lampa.Listener.follow('app', function (e) {
+    if (e.type === 'ready') {
+        addStyles();
+        addSetting();
+    }
+});
+
+
+
+})();
+

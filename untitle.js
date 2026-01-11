@@ -2,8 +2,8 @@
   'use strict';
 
   var config = {
-    version: '2.0.5-white-bg',
-    name: 'Torrent Styles MOD (White Background)',
+    version: '2.0.6-soft-bg',
+    name: 'Torrent Styles MOD (Soft Background)',
     pluginId: 'torrent_styles_mod'
   };
 
@@ -30,7 +30,7 @@
       'font-weight': '700',
       'font-size': '0.9em',
       'white-space': 'nowrap',
-      'background-color': '#ffffff'
+      'background-color': '#f2f3f5'
     },
 
     /* SEEDS */
@@ -67,7 +67,7 @@
       border: '0.15em solid #b983ff'
     },
 
-    /* PEERS / GRABS — STRONG BLUE */
+    /* PEERS / GRABS — ALWAYS STRONG BLUE */
     '.torrent-item__grabs > span.ts-grabs': {
       color: '#4db6ff',
       border: '0.15em solid #4db6ff'

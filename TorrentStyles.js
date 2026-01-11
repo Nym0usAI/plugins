@@ -125,3 +125,4 @@
   updateTorrentStyles();
 
 })();
+Lampa.Platform.tv()

@@ -1,3 +1,4 @@
+// Lampa
 (function () {
   'use strict';
 

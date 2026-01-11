@@ -2,8 +2,8 @@
   'use strict';
 
   var config = {
-    version: '2.0.3-custom',
-    name: 'Torrent Styles MOD (Final)',
+    version: '2.0.4-custom',
+    name: 'Torrent Styles MOD (Final Solid)',
     pluginId: 'torrent_styles_mod'
   };
 
@@ -16,12 +16,6 @@
     bitrate: {
       warn_from: 46,   // 46–65
       danger_from: 66  // 66+
-    },
-    size: {
-      low_bad_to_gb: 5,
-      gold_small_to_gb: 10,
-      green_to_gb: 50,
-      gold_big_to_gb: 65
     },
     debounce_ms: 60
   };
@@ -74,30 +68,15 @@
       border: '0.15em solid rgba(255,95,109,0.9)'
     },
 
-    /* SIZE — PURPLE */
+    /* SIZE — ALWAYS EXCELLENT (PURPLE) */
     '.torrent-item__size.ts-size': {
       color: '#b983ff',
       'background-color': 'rgba(185,131,255,0.14)',
       border: '0.15em solid rgba(185,131,255,0.9)'
     },
-    '.torrent-item__size.high-size': {
-      color: '#6c5ce7',
-      'background-color': 'rgba(108,92,231,0.16)',
-      border: '0.15em solid rgba(108,92,231,0.9)'
-    },
-    '.torrent-item__size.top-size': {
-      color: '#5a2a82',
-      'background-color': 'rgba(90,42,130,0.18)',
-      border: '0.15em solid rgba(90,42,130,0.9)'
-    },
 
-    /* PEERS / GRABS — BLUE */
+    /* PEERS / GRABS — ALWAYS STRONG BLUE */
     '.torrent-item__grabs > span.ts-grabs': {
-      color: '#4db6ff',
-      'background-color': 'rgba(77,182,255,0.12)',
-      border: '0.15em solid rgba(77,182,255,0.82)'
-    },
-    '.torrent-item__grabs > span.ts-grabs.high-grabs': {
       color: '#4db6ff',
       'background-color': 'rgba(77,182,255,0.18)',
       border: '0.15em solid rgba(77,182,255,0.92)'
@@ -112,16 +91,6 @@
       }).join(';') + '}';
     }).join('\n');
     document.head.appendChild(style);
-  }
-
-  function tsParseSizeToGb(text) {
-    var m = text.replace(',', '.').match(/(\d+(\.\d+)?)\s*(gb|tb|mb|гб|тб|мб)/i);
-    if (!m) return null;
-    var v = parseFloat(m[1]);
-    var u = m[3].toLowerCase();
-    if (u === 'tb' || u === 'тб') return v * 1024;
-    if (u === 'mb' || u === 'мб') return v / 1024;
-    return v;
   }
 
   function updateTorrentStyles() {
@@ -140,19 +109,11 @@
     });
 
     document.querySelectorAll('.torrent-item__grabs span').forEach(function (s) {
-      var v = parseInt(s.textContent) || 0;
-      s.className = 'ts-grabs';
-      if (v > 10) s.classList.add('high-grabs');
+      s.className = 'ts-grabs'; // всегда усиленный синий
     });
 
     document.querySelectorAll('.torrent-item__size').forEach(function (s) {
-      var gb = tsParseSizeToGb(s.textContent);
-      s.className = 'torrent-item__size ts-size';
-      if (gb <= TH.size.low_bad_to_gb) s.classList.add('top-size');
-      else if (gb <= TH.size.gold_small_to_gb) s.classList.add('high-size');
-      else if (gb <= TH.size.green_to_gb) {}
-      else if (gb <= TH.size.gold_big_to_gb) s.classList.add('high-size');
-      else s.classList.add('top-size');
+      s.className = 'torrent-item__size ts-size'; // всегда фиолетовый
     });
   }
 

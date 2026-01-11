@@ -1,4 +1,3 @@
-Lampa.Platform.tv()
 (function () {
   'use strict';
 
@@ -37,48 +36,48 @@ Lampa.Platform.tv()
 
     /* SEEDS */
     '.torrent-item__seeds > span.ts-seeds': {
-      color: '#ffc371',
+      color: '#ffc371', // обычные
       'background-color': 'rgba(255,195,113,0.15)',
       border: '0.15em solid rgba(255,195,113,0.9)'
     },
     '.torrent-item__seeds > span.low-seeds': {
-      color: '#ff5f6d',
+      color: '#ff5f6d', // низкие
       'background-color': 'rgba(255,95,109,0.15)',
       border: '0.15em solid rgba(255,95,109,0.9)'
     },
     '.torrent-item__seeds > span.high-seeds': {
-      color: '#43cea2',
+      color: '#43cea2', // высокие
       'background-color': 'rgba(67,206,162,0.15)',
       border: '0.15em solid rgba(67,206,162,0.9)'
     },
 
     /* BITRATE */
     '.torrent-item__bitrate > span.ts-bitrate': {
-      color: '#43cea2',
+      color: '#43cea2', // обычный
       'background-color': 'rgba(67,206,162,0.12)',
       border: '0.15em solid rgba(67,206,162,0.85)'
     },
     '.torrent-item__bitrate > span.high-bitrate': {
-      color: '#ffc371',
+      color: '#ffc371', // высокий
       'background-color': 'rgba(255,195,113,0.18)',
       border: '0.15em solid rgba(255,195,113,0.9)'
     },
     '.torrent-item__bitrate > span.very-high-bitrate': {
-      color: '#ff5f6d',
+      color: '#ff5f6d', // очень высокий
       'background-color': 'rgba(255,95,109,0.18)',
       border: '0.15em solid rgba(255,95,109,0.9)'
     },
 
-    /* SIZE — ALWAYS EXCELLENT (PURPLE) */
+    /* SIZE */
     '.torrent-item__size.ts-size': {
-      color: '#b983ff',
+      color: '#b983ff', // всегда фиолетовый
       'background-color': 'rgba(185,131,255,0.14)',
       border: '0.15em solid rgba(185,131,255,0.9)'
     },
 
-    /* PEERS / GRABS — ALWAYS STRONG BLUE */
+    /* GRABS / PEERS */
     '.torrent-item__grabs > span.ts-grabs': {
-      color: '#4db6ff',
+      color: '#4db6ff', // всегда усиленный синий
       'background-color': 'rgba(77,182,255,0.18)',
       border: '0.15em solid rgba(77,182,255,0.92)'
     }

@@ -2,20 +2,22 @@
   'use strict';
 
   var config = {
-    version: '2.0.6-soft-bg',
-    name: 'Torrent Styles MOD (Soft Background)',
+    version: '2.0.4-custom',
+    name: 'Torrent Styles MOD (Final Solid)',
     pluginId: 'torrent_styles_mod'
   };
 
   var TH = {
     seeds: {
-      danger_below: 6,
+      danger_below: 6, // 0–5
+      good_from: 21,   // 21+
       top_from: 21
     },
     bitrate: {
-      warn_from: 46,
-      danger_from: 66
-    }
+      warn_from: 46,   // 46–65
+      danger_from: 66  // 66+
+    },
+    debounce_ms: 60
   };
 
   var styles = {
@@ -29,48 +31,55 @@
       'border-radius': '0.5em',
       'font-weight': '700',
       'font-size': '0.9em',
-      'white-space': 'nowrap',
-      'background-color': '#f2f3f5'
+      'white-space': 'nowrap'
     },
 
     /* SEEDS */
     '.torrent-item__seeds > span.ts-seeds': {
       color: '#ffc371',
-      border: '0.15em solid #ffc371'
+      'background-color': 'rgba(255,195,113,0.15)',
+      border: '0.15em solid rgba(255,195,113,0.9)'
     },
     '.torrent-item__seeds > span.low-seeds': {
       color: '#ff5f6d',
-      border: '0.15em solid #ff5f6d'
+      'background-color': 'rgba(255,95,109,0.15)',
+      border: '0.15em solid rgba(255,95,109,0.9)'
     },
     '.torrent-item__seeds > span.high-seeds': {
       color: '#43cea2',
-      border: '0.15em solid #43cea2'
+      'background-color': 'rgba(67,206,162,0.15)',
+      border: '0.15em solid rgba(67,206,162,0.9)'
     },
 
     /* BITRATE */
     '.torrent-item__bitrate > span.ts-bitrate': {
       color: '#43cea2',
-      border: '0.15em solid #43cea2'
+      'background-color': 'rgba(67,206,162,0.12)',
+      border: '0.15em solid rgba(67,206,162,0.85)'
     },
     '.torrent-item__bitrate > span.high-bitrate': {
       color: '#ffc371',
-      border: '0.15em solid #ffc371'
+      'background-color': 'rgba(255,195,113,0.18)',
+      border: '0.15em solid rgba(255,195,113,0.9)'
     },
     '.torrent-item__bitrate > span.very-high-bitrate': {
       color: '#ff5f6d',
-      border: '0.15em solid #ff5f6d'
+      'background-color': 'rgba(255,95,109,0.18)',
+      border: '0.15em solid rgba(255,95,109,0.9)'
     },
 
-    /* SIZE — ALWAYS PURPLE */
+    /* SIZE — ALWAYS EXCELLENT (PURPLE) */
     '.torrent-item__size.ts-size': {
       color: '#b983ff',
-      border: '0.15em solid #b983ff'
+      'background-color': 'rgba(185,131,255,0.14)',
+      border: '0.15em solid rgba(185,131,255,0.9)'
     },
 
     /* PEERS / GRABS — ALWAYS STRONG BLUE */
     '.torrent-item__grabs > span.ts-grabs': {
       color: '#4db6ff',
-      border: '0.15em solid #4db6ff'
+      'background-color': 'rgba(77,182,255,0.18)',
+      border: '0.15em solid rgba(77,182,255,0.92)'
     }
   };
 
@@ -100,11 +109,11 @@
     });
 
     document.querySelectorAll('.torrent-item__grabs span').forEach(function (s) {
-      s.className = 'ts-grabs';
+      s.className = 'ts-grabs'; // всегда усиленный синий
     });
 
     document.querySelectorAll('.torrent-item__size').forEach(function (s) {
-      s.className = 'torrent-item__size ts-size';
+      s.className = 'torrent-item__size ts-size'; // всегда фиолетовый
     });
   }
 

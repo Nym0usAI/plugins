@@ -37,4 +37,18 @@
         Lampa.Template.get('old_interface_captions_style', {}, true)
     );
 
+    // ==========================
+    // MutationObserver — защита от динамического появления элементов
+    // ==========================
+    const observer = new MutationObserver(() => {
+        document.querySelectorAll('body:not(.new-interface) .card__title, body:not(.new-interface) .card__name, body:not(.new-interface) .card__year, body:not(.new-interface) .card__caption, body:not(.new-interface) .card__bottom, body:not(.new-interface) .card__details, body:not(.new-interface) .card__description, body:not(.new-interface) .card__text, body:not(.new-interface) .card__subtitle')
+            .forEach(el => {
+                el.style.display = 'block';
+                el.style.opacity = '1';
+                el.style.visibility = 'visible';
+            });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
 })();

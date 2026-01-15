@@ -13,18 +13,18 @@
         /* =========================================
            СТАРЫЙ ИНТЕРФЕЙС
            Всегда показывать названия и год
-           (работает только БЕЗ .new-interface)
+           (только без .new-interface)
         ========================================== */
 
-        :not(.new-interface) .card__title,
-        :not(.new-interface) .card__name,
-        :not(.new-interface) .card__year,
-        :not(.new-interface) .card__caption,
-        :not(.new-interface) .card__bottom,
-        :not(.new-interface) .card__details,
-        :not(.new-interface) .card__description,
-        :not(.new-interface) .card__text,
-        :not(.new-interface) .card__subtitle {
+        body:not(.new-interface) .card__title,
+        body:not(.new-interface) .card__name,
+        body:not(.new-interface) .card__year,
+        body:not(.new-interface) .card__caption,
+        body:not(.new-interface) .card__bottom,
+        body:not(.new-interface) .card__details,
+        body:not(.new-interface) .card__description,
+        body:not(.new-interface) .card__text,
+        body:not(.new-interface) .card__subtitle {
             display: block !important;
             opacity: 1 !important;
             visibility: visible !important;

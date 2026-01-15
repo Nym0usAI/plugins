@@ -12,17 +12,11 @@
         <style>
         /* =========================================
            СТАРЫЙ ИНТЕРФЕЙС
-           Всегда показывать названия и год
+           Показывать названия и год только в нужных разделах
         ========================================== */
         body:not(.new-interface) .card__title,
         body:not(.new-interface) .card__name,
-        body:not(.new-interface) .card__year,
-        body:not(.new-interface) .card__caption,
-        body:not(.new-interface) .card__bottom,
-        body:not(.new-interface) .card__details,
-        body:not(.new-interface) .card__description,
-        body:not(.new-interface) .card__text,
-        body:not(.new-interface) .card__subtitle {
+        body:not(.new-interface) .card__year {
             display: block !important;
             opacity: 1 !important;
             visibility: visible !important;
@@ -35,30 +29,35 @@
         Lampa.Template.get('old_interface_captions_style', {}, true)
     );
 
-    // ==========================
-    // MutationObserver — следим за динамически появляющимися карточками
-    // ==========================
+    // Разделы, где показываем названия и год
+    const allowedSections = ['favorites', 'history', 'torrents', 'releases'];
+
+    // MutationObserver
     const observer = new MutationObserver(() => {
         document.querySelectorAll('body:not(.new-interface) .card').forEach(card => {
+            const sectionEl = card.closest('[data-section]');
+            const section = sectionEl ? sectionEl.dataset.section : null;
+            const item = $(card).data('item') || {};
 
-            // Показываем все нужные элементы
-            ['title', 'name', 'year', 'caption', 'bottom', 'details', 'description', 'text', 'subtitle'].forEach(cls => {
-                const el = card.querySelector('.card__' + cls);
-                if (el) {
-                    el.style.display = 'block';
-                    el.style.opacity = '1';
-                    el.style.visibility = 'visible';
+            // проверяем условие: раздел нужный или карточка фильма
+            if (allowedSections.includes(section) || item.type === 'movie') {
+
+                // Показываем title и year
+                ['title', 'name', 'year'].forEach(cls => {
+                    const el = card.querySelector('.card__' + cls);
+                    if (el) {
+                        el.style.display = 'block';
+                        el.style.opacity = '1';
+                        el.style.visibility = 'visible';
+                    }
+                });
+
+                // Подставляем год, если пустой
+                const yearEl = card.querySelector('.card__year');
+                if (yearEl && !yearEl.textContent.trim() && item.year) {
+                    yearEl.textContent = item.year;
                 }
-            });
-
-            // Подставляем год, если пустой
-            const yearEl = card.querySelector('.card__year');
-            if (yearEl && !yearEl.textContent.trim()) {
-                // берем год из данных карточки Lampa (если есть)
-                const item = $(card).data('item') || {};
-                if (item.year) yearEl.textContent = item.year;
             }
-
         });
     });
 

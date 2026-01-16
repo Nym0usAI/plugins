@@ -5,10 +5,10 @@
     if (window.captions_fix_balanced) return;
     window.captions_fix_balanced = true;
 
-    console.log('[Captions Fix] Balanced FIXED version started');
+    console.log('[Captions Fix] Balanced FINAL started');
 
     /* =======================
-       SECTION KEYWORDS
+       SECTION KEYWORDS (основные экраны)
     ======================= */
 
     const SECTIONS = {
@@ -16,94 +16,45 @@
         favorites: ['избран', 'favorit', 'bookmark'],
         history: ['истор', 'history', 'watch'],
         torrents: ['торрент', 'torrent', 'download'],
-        search: ['поиск', 'search', 'find'],
-
-        recommendations: [
-            'рекоменд',
-            'recommend',
-            'suggest',
-            'for you',
-            'вам понрав'
-        ],
-
-        similar: [
-            'похож',
-            'similar',
-            'related',
-            'also like'
-        ]
+        search: ['поиск', 'search', 'find']
     };
 
     const STYLE_ID = 'captions-fix-balanced-style';
-
     let lastSection = '';
-    let observer = null;
 
     /* =======================
-       SECTION DETECTION
+       SECTION DETECTION (ЭКРАНЫ)
     ======================= */
 
     function detectSection() {
-        // 1. Основные экраны (шапка)
         const header = document.querySelector('.head__title');
-        if (header && header.textContent) {
-            return header.textContent.trim();
-        }
+        if (header && header.textContent) return header.textContent.trim();
 
-        // 2. Activity Lampa
         if (Lampa.Activity && Lampa.Activity.active) {
             const a = Lampa.Activity.active();
-            if (a) {
-                return a.title || a.name || '';
-            }
+            if (a) return a.title || a.name || '';
         }
 
-        // 3. ВНУТРЕННИЕ БЛОКИ (Рекомендации / Похожие)
-        const blockTitles = document.querySelectorAll(
-            '.items__title, .line__title, h2'
-        );
-
-        for (const el of blockTitles) {
-            if (el.textContent && el.offsetParent !== null) {
-                const text = el.textContent.trim();
-                if (text) return text;
-            }
-        }
-
-        // 4. URL hash (fallback)
         return window.location.hash.replace('#', '');
     }
 
     function detectSectionType(name) {
         if (!name) return '';
+        const v = name.toLowerCase();
 
-        const value = name.toLowerCase();
-
-        for (const type in SECTIONS) {
-            if (SECTIONS[type].some(k => value.includes(k))) {
-                return type;
-            }
+        for (const t in SECTIONS) {
+            if (SECTIONS[t].some(k => v.includes(k))) return t;
         }
-
         return '';
     }
 
-    function shouldShow() {
-        const section = detectSection();
-        const type = detectSectionType(section);
-
-        console.log('[Captions Fix] Section:', section, 'Type:', type);
-        return Boolean(type);
+    function shouldShowGlobal() {
+        return Boolean(detectSectionType(detectSection()));
     }
 
     /* =======================
        STYLES
     ======================= */
-
-    function applyStyles(show) {
-        document.body.classList.toggle('captions-show', show);
-        document.body.classList.toggle('captions-hide', !show);
-    }
 
     function injectCSS() {
         if (document.getElementById(STYLE_ID)) return;
@@ -111,6 +62,7 @@
         const style = document.createElement('style');
         style.id = STYLE_ID;
         style.textContent = `
+            /* === ГЛОБАЛЬНЫЕ РАЗДЕЛЫ === */
             body.captions-show .card:not(.card--collection) .card__title,
             body.captions-show .card:not(.card--collection) .card__age {
                 display: block !important;
@@ -122,6 +74,28 @@
             body.captions-hide .card:not(.card--collection) .card__age {
                 display: none !important;
             }
+
+            /* === РЕКОМЕНДАЦИИ / ПОХОЖИЕ (ВСЕГДА ПОКАЗЫВАТЬ) === */
+            .items__title,
+            .line__title {
+                /* якоря для блоков */
+            }
+
+            .items__title:has-text("Рекомен"),
+            .items__title:has-text("Похож"),
+            .line__title:has-text("Рекомен"),
+            .line__title:has-text("Похож") {
+                display: block;
+            }
+
+            .items__title ~ .items .card .card__title,
+            .items__title ~ .items .card .card__age,
+            .line__title ~ .items .card .card__title,
+            .line__title ~ .items .card .card__age {
+                display: block !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -131,47 +105,22 @@
     ======================= */
 
     function update() {
-        const section = detectSection();
-
-        if (section !== lastSection) {
-            lastSection = section;
-            applyStyles(shouldShow());
-        }
-    }
-
-    function startObserver() {
-        observer = new MutationObserver(update);
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class']
-        });
+        const show = shouldShowGlobal();
+        document.body.classList.toggle('captions-show', show);
+        document.body.classList.toggle('captions-hide', !show);
     }
 
     function init() {
         injectCSS();
         update();
-        startObserver();
-        console.log('[Captions Fix] Balanced FIXED initialized');
+
+        new MutationObserver(update).observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        console.log('[Captions Fix] Balanced FINAL initialized');
     }
-
-    /* =======================
-       PUBLIC API
-    ======================= */
-
-    window.debugCaptions = () => ({
-        section: detectSection(),
-        type: detectSectionType(detectSection()),
-        show: shouldShow()
-    });
-
-    window.showCaptions = () => applyStyles(true);
-    window.hideCaptions = () => applyStyles(false);
-
-    /* =======================
-       START
-    ======================= */
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

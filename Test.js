@@ -14,6 +14,20 @@
         self.observer = null;
         self.checkInterval = null;
         
+        // РАЗДЕЛЫ ГДЕ НАЗВАНИЯ ДОЛЖНЫ ПОКАЗЫВАТЬСЯ
+        self.SHOW_IN_SECTIONS = [
+            "Релизы",
+            "Избранное", 
+            "История",
+            "Торренты",
+            "Поиск",
+            "Releases",     // английская версия
+            "Favorites",    // английская версия
+            "History",      // английская версия
+            "Torrents",     // английская версия
+            "Search"        // английская версия
+        ];
+        
         // Инициализация
         self.init = function() {
             if (self.initialized) return;
@@ -54,16 +68,16 @@
                     param: { 
                         name: "captions_show_mode", 
                         type: "select", 
-                        default: "auto",
+                        default: "section",
                         values: {
-                            "auto": "Авто (скрыть в новом интерфейсе)",
+                            "section": "По разделам (скрыть кроме указанных)",
                             "show": "Показывать везде",
                             "hide": "Скрывать везде"
                         }
                     },
                     field: { 
                         name: "Отображение названий", 
-                        description: "Управление названиями и годом под карточками" 
+                        description: "Скрывать названия везде кроме: Релизы, Избранное, История, Торренты, Поиск" 
                     },
                     onRender: function (item) {
                         // Размещаем в нужном месте
@@ -91,30 +105,54 @@
         
         // Получение текущего режима
         self.getMode = function() {
-            return Lampa.Storage.get("captions_show_mode", "auto");
+            return Lampa.Storage.get("captions_show_mode", "section");
+        };
+        
+        // Определение текущего раздела
+        self.getCurrentSection = function() {
+            try {
+                // Способ 1: Из заголовка страницы
+                var pageTitle = $('.head__title').text().trim();
+                if (pageTitle) return pageTitle;
+                
+                // Способ 2: Из активной активности Lampa
+                var activity = Lampa.Activity.active();
+                if (activity && activity.component && activity.component.title) {
+                    return activity.component.title;
+                }
+                
+                // Способ 3: Из URL или других признаков
+                if (window.location.hash.indexOf('search') !== -1) return "Поиск";
+                if (window.location.hash.indexOf('favorite') !== -1) return "Избранное";
+                if (window.location.hash.indexOf('history') !== -1) return "История";
+                if (window.location.hash.indexOf('torrent') !== -1) return "Торренты";
+                if (window.location.hash.indexOf('release') !== -1) return "Релизы";
+                
+                return "";
+            } catch(e) {
+                return "";
+            }
+        };
+        
+        // Проверка, нужно ли показывать названия в текущем разделе
+        self.shouldShowInCurrentSection = function() {
+            var currentSection = self.getCurrentSection();
+            return self.SHOW_IN_SECTIONS.some(function(section) {
+                return currentSection.includes(section) || section.includes(currentSection);
+            });
         };
         
         // Генерация CSS в зависимости от режима
         self.generateCSS = function() {
             var mode = self.getMode();
-            var css = "/* Captions Fix Plugin */\n";
+            var css = "/* Captions Fix Plugin - Скрыть названия кроме указанных разделов */\n";
             
             switch(mode) {
                 case "show":
-                    // Показывать везде - переопределяем скрытие
+                    // Показывать везде
                     css += `
                         .card:not(.card--collection) .card__age,
                         .card:not(.card--collection) .card__title {
-                            display: block !important;
-                            opacity: 1 !important;
-                            visibility: visible !important;
-                        }
-                        
-                        /* Отменяем все возможные скрытия */
-                        .new-interface .card:not(.card--collection) .card__age,
-                        .new-interface .card:not(.card--collection) .card__title,
-                        body .card:not(.card--collection) .card__age,
-                        body .card:not(.card--collection) .card__title {
                             display: block !important;
                             opacity: 1 !important;
                             visibility: visible !important;
@@ -132,21 +170,27 @@
                     `;
                     break;
                     
-                case "auto":
+                case "section":
                 default:
-                    // Авто: скрывать только в новом интерфейсе
+                    // ПО УМОЛЧАНИЮ: скрывать везде кроме указанных разделов
                     css += `
-                        /* В новом интерфейсе - скрыть */
-                        .new-interface .card:not(.card--collection) .card__age,
-                        .new-interface .card:not(.card--collection) .card__title {
+                        /* По умолчанию - скрывать везде */
+                        .card:not(.card--collection) .card__age,
+                        .card:not(.card--collection) .card__title {
                             display: none !important;
                         }
                         
-                        /* Вне нового интерфейса - показать (с повышенным приоритетом) */
-                        body:not(.new-interface) .card:not(.card--collection) .card__age,
-                        body:not(.new-interface) .card:not(.card--collection) .card__title,
-                        :not(.new-interface) .card:not(.card--collection) .card__age,
-                        :not(.new-interface) .card:not(.card--collection) .card__title {
+                        /* Показать только в указанных разделах */
+                        body.section-releases .card:not(.card--collection) .card__age,
+                        body.section-releases .card:not(.card--collection) .card__title,
+                        body.section-favorites .card:not(.card--collection) .card__age,
+                        body.section-favorites .card:not(.card--collection) .card__title,
+                        body.section-history .card:not(.card--collection) .card__age,
+                        body.section-history .card:not(.card--collection) .card__title,
+                        body.section-torrents .card:not(.card--collection) .card__age,
+                        body.section-torrents .card:not(.card--collection) .card__title,
+                        body.section-search .card:not(.card--collection) .card__age,
+                        body.section-search .card:not(.card--collection) .card__title {
                             display: block !important;
                             opacity: 1 !important;
                             visibility: visible !important;
@@ -158,8 +202,39 @@
             return css;
         };
         
+        // Добавление классов разделов к body для CSS селекторов
+        self.updateBodyClasses = function() {
+            var currentSection = self.getCurrentSection();
+            var body = document.body;
+            
+            // Удаляем старые классы разделов
+            body.classList.remove(
+                'section-releases',
+                'section-favorites', 
+                'section-history',
+                'section-torrents',
+                'section-search'
+            );
+            
+            // Добавляем новый класс в зависимости от раздела
+            if (currentSection.includes("Релизы") || currentSection.includes("Releases")) {
+                body.classList.add('section-releases');
+            } else if (currentSection.includes("Избранное") || currentSection.includes("Favorites")) {
+                body.classList.add('section-favorites');
+            } else if (currentSection.includes("История") || currentSection.includes("History")) {
+                body.classList.add('section-history');
+            } else if (currentSection.includes("Торренты") || currentSection.includes("Torrents")) {
+                body.classList.add('section-torrents');
+            } else if (currentSection.includes("Поиск") || currentSection.includes("Search")) {
+                body.classList.add('section-search');
+            }
+        };
+        
         // Добавление/обновление стилей
         self.addStyles = function() {
+            // Обновляем классы body для CSS селекторов
+            self.updateBodyClasses();
+            
             var css = self.generateCSS();
             var styleId = "captions-fix-styles";
             
@@ -191,6 +266,7 @@
         // Применение стилей к уже существующим карточкам
         self.applyToExistingCards = function() {
             var mode = self.getMode();
+            var shouldShow = self.shouldShowInCurrentSection();
             
             $('.card:not(.card--collection)').each(function() {
                 var $card = $(this);
@@ -198,6 +274,7 @@
                 var $title = $card.find('.card__title');
                 
                 if (mode === 'show') {
+                    // Показать везде
                     $age.css({
                         'display': 'block',
                         'opacity': '1',
@@ -209,15 +286,13 @@
                         'visibility': 'visible'
                     });
                 } else if (mode === 'hide') {
+                    // Скрыть везде
                     $age.css('display', 'none');
                     $title.css('display', 'none');
-                } else if (mode === 'auto') {
-                    // Проверяем, находится ли карточка в новом интерфейсе
-                    var inNewInterface = $card.closest('.new-interface').length > 0;
-                    if (inNewInterface) {
-                        $age.css('display', 'none');
-                        $title.css('display', 'none');
-                    } else {
+                } else if (mode === 'section') {
+                    // По разделу
+                    if (shouldShow) {
+                        // Показать в этом разделе
                         $age.css({
                             'display': 'block',
                             'opacity': '1'
@@ -226,20 +301,36 @@
                             'display': 'block',
                             'opacity': '1'
                         });
+                    } else {
+                        // Скрыть в этом разделе
+                        $age.css('display', 'none');
+                        $title.css('display', 'none');
                     }
                 }
             });
         };
         
-        // Наблюдатель за изменениями DOM
+        // Наблюдатель за изменениями DOM и переходами между разделами
         self.startObserver = function() {
             if (self.observer) return;
             
+            // Наблюдатель за изменениями DOM
             self.observer = new MutationObserver(function(mutations) {
                 var shouldUpdate = false;
+                var sectionChanged = false;
                 
+                // Проверяем изменения заголовка (смена раздела)
                 for (var i = 0; i < mutations.length; i++) {
                     var mutation = mutations[i];
+                    
+                    // Если меняется текст заголовка - сменился раздел
+                    if (mutation.target.classList && 
+                        (mutation.target.classList.contains('head__title') || 
+                         mutation.type === 'characterData')) {
+                        sectionChanged = true;
+                    }
+                    
+                    // Если добавляются новые карточки
                     if (mutation.addedNodes && mutation.addedNodes.length > 0) {
                         for (var j = 0; j < mutation.addedNodes.length; j++) {
                             var node = mutation.addedNodes[j];
@@ -255,18 +346,41 @@
                             }
                         }
                     }
-                    if (shouldUpdate) break;
                 }
                 
-                if (shouldUpdate) {
+                if (sectionChanged) {
+                    // Раздел сменился - обновляем всё
+                    setTimeout(function() {
+                        self.updateBodyClasses();
+                        self.addStyles();
+                        self.applyToExistingCards();
+                    }, 300);
+                } else if (shouldUpdate) {
+                    // Просто добавились новые карточки
                     setTimeout(self.applyToExistingCards, 100);
                 }
             });
             
             self.observer.observe(document.body, {
                 childList: true,
-                subtree: true
+                subtree: true,
+                characterData: true,
+                attributes: true,
+                attributeFilter: ['class']
             });
+            
+            // Также слушаем события Lampa о смене активности
+            if (Lampa.Listener) {
+                Lampa.Listener.follow('activity', function(e) {
+                    if (e.type === 'active' || e.type === 'start') {
+                        setTimeout(function() {
+                            self.updateBodyClasses();
+                            self.addStyles();
+                            self.applyToExistingCards();
+                        }, 500);
+                    }
+                });
+            }
         };
         
         // Очистка
@@ -295,23 +409,6 @@
     setTimeout(function() {
         plugin.init();
     }, 2000);
-    
-    // Перехватываем добавление стилей основным плагином
-    var originalAppend = $.fn.append;
-    $.fn.append = function() {
-        var result = originalAppend.apply(this, arguments);
-        
-        // Проверяем, не добавляются ли стили основного плагина
-        for (var i = 0; i < arguments.length; i++) {
-            var arg = arguments[i];
-            if (typeof arg === 'string' && arg.indexOf('hide_captions') !== -1) {
-                // Основной плагин добавил свои стили - обновляем наши
-                setTimeout(plugin.addStyles, 100);
-            }
-        }
-        
-        return result;
-    };
     
     // Экспортируем для ручного управления
     window.CaptionsFixPlugin = plugin;

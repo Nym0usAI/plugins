@@ -5,7 +5,7 @@
     if (window.captions_fix_balanced) return;
     window.captions_fix_balanced = true;
 
-    console.log('[Captions Fix] Balanced version started');
+    console.log('[Captions Fix] Balanced FIXED version started');
 
     /* =======================
        SECTION KEYWORDS
@@ -44,13 +44,13 @@
     ======================= */
 
     function detectSection() {
-        // 1. Header title
+        // 1. Основные экраны (шапка)
         const header = document.querySelector('.head__title');
         if (header && header.textContent) {
             return header.textContent.trim();
         }
 
-        // 2. Lampa Activity
+        // 2. Activity Lampa
         if (Lampa.Activity && Lampa.Activity.active) {
             const a = Lampa.Activity.active();
             if (a) {
@@ -58,7 +58,19 @@
             }
         }
 
-        // 3. URL hash
+        // 3. ВНУТРЕННИЕ БЛОКИ (Рекомендации / Похожие)
+        const blockTitles = document.querySelectorAll(
+            '.items__title, .line__title, h2'
+        );
+
+        for (const el of blockTitles) {
+            if (el.textContent && el.offsetParent !== null) {
+                const text = el.textContent.trim();
+                if (text) return text;
+            }
+        }
+
+        // 4. URL hash (fallback)
         return window.location.hash.replace('#', '');
     }
 
@@ -141,7 +153,7 @@
         injectCSS();
         update();
         startObserver();
-        console.log('[Captions Fix] Balanced initialized');
+        console.log('[Captions Fix] Balanced FIXED initialized');
     }
 
     /* =======================

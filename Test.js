@@ -41,6 +41,24 @@
             'в ролях', 'cast', 'состав'
         ];
         
+        // Дополнительные селекторы для страниц актёров (из скриншота)
+        self.ACTOR_PAGE_SELECTORS = [
+            '.person__block',            // Блоки на странице актёра
+            '.person-filmography',       // Фильмография
+            '.person-content',           // Контент страницы актёра
+            '.person-details',           // Детали актёра
+            '.person-credits',           // Кредиты актёра
+            '.credits-wrapper',          // Обёртка кредитов
+            '[data-page="person"]',      // Страница персонажа
+            '[data-type="person"]',      // Тип персонаж
+            '.card--person',             // Карточки в контексте персоны
+            '.card-section',             // Секции с карточками
+            '.compilation',              // Подборки
+            '.credits-list',             // Список кредитов
+            '.film-list',                // Список фильмов
+            '.media-section'             // Медиа-секции
+        ];
+        
         // Инициализация
         self.init = function() {
             if (self.initialized) return;
@@ -62,6 +80,11 @@
             
             // ПЕРВОНАЧАЛЬНАЯ ПРОВЕРКА СРАЗУ
             self.checkAndUpdate();
+            
+            // Дополнительная проверка через 500мс на случай динамической загрузки
+            setTimeout(function() {
+                self.checkAndUpdate();
+            }, 500);
             
             self.initialized = true;
             console.log("[Captions Fix v2] Инициализирован");
@@ -100,6 +123,7 @@
                 if (hash.includes('torrent') || hash.includes('торрент')) return "Торренты";
                 if (hash.includes('release') || hash.includes('релиз')) return "Релизы";
                 if (hash.includes('search') || hash.includes('поиск')) return "Поиск";
+                if (hash.includes('person') || hash.includes('актер') || hash.includes('actor')) return "Актёр";
                 
                 // СПОСОБ 4: Из классов body
                 var bodyClass = document.body.className;
@@ -108,6 +132,7 @@
                 if (bodyClass.includes('torrent') || bodyClass.includes('торрент')) return "Торренты";
                 if (bodyClass.includes('release') || bodyClass.includes('релиз')) return "Релизы";
                 if (bodyClass.includes('search') || bodyClass.includes('поиск')) return "Поиск";
+                if (bodyClass.includes('person') || bodyClass.includes('actor')) return "Актёр";
                 
                 // СПОСОБ 5: Из активного меню/навигации
                 var activeNav = document.querySelector('.navigation__item.active, .menu__item.active');
@@ -145,6 +170,7 @@
                 if (pageText.includes('торренты') || pageText.includes('torrent')) return "Торренты";
                 if (pageText.includes('релизы') || pageText.includes('release')) return "Релизы";
                 if (pageText.includes('поиск') || pageText.includes('search')) return "Поиск";
+                if (pageText.includes('актер') || pageText.includes('actor') || pageText.includes('актриса')) return "Актёр";
                 
             } catch(e) {
                 console.error("[Captions Fix v2] Ошибка определения раздела:", e);
@@ -168,15 +194,20 @@
                 }
                 
                 // 2. Проверка по структуре страницы (специфичные для актёров элементы)
-                var actorElements = [
-                    '.person-header', // Шапка с информацией об актёре
-                    '.actor-profile', // Профиль актёра
-                    '.person-info',   // Информация об актёре
-                    '.biography',     // Биография
+                var actorElements = self.ACTOR_PAGE_SELECTORS.concat([
+                    '.person-header',    // Шапка с информацией об актёре
+                    '.actor-profile',    // Профиль актёра
+                    '.person-info',      // Информация об актёре
+                    '.biography',        // Биография
                     '[data-type="person"]', // Элементы с типом person
-                    '.filmography',   // Фильмография
-                    '.known-for'      // Известные работы
-                ];
+                    '.filmography',      // Фильмография
+                    '.known-for',        // Известные работы
+                    '.person-filmography', // Фильмография персоны
+                    '.person-credits',   // Кредиты персоны
+                    '.credits-wrapper',  // Обёртка кредитов
+                    '.compilation',      // Подборки
+                    '.credits-list'      // Список кредитов
+                ]);
                 
                 for (var j = 0; j < actorElements.length; j++) {
                     if (document.querySelector(actorElements[j])) {
@@ -185,18 +216,34 @@
                     }
                 }
                 
-                // 3. Проверка по контенту страницы
+                // 3. Проверка по контенту страницы (из скриншота)
                 var pageText = document.body.textContent || "";
                 var pageTextLower = pageText.toLowerCase();
                 
-                // Если на странице есть слова связанные с актёрами и есть список карточек
-                if ((pageTextLower.includes('родился') || 
-                     pageTextLower.includes('биография') ||
-                     pageTextLower.includes('фильмография') ||
-                     pageTextLower.includes('роль') ||
-                     pageTextLower.includes('в ролях')) && 
-                    document.querySelector('.card')) {
-                    console.log("[Captions Fix v2] Определена страница актёра по контенту");
+                // Проверяем наличие типичных для страницы актёра элементов
+                var actorContentIndicators = [
+                    /подписаться/i,              // Кнопка подписки
+                    /фильмы\s*\(\d+\)/i,         // "Фильмы (64)"
+                    /сериалы\s*\(\d+\)/i,        // "Сериалы (7)"
+                    /остальное\s*\(\d+\)/i,      // "Остальное (9)"
+                    /\d+\s*(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s*\d{4}/i, // Дата рождения
+                    /родился/i,                  // "Родился"
+                    /биография/i,                // "Биография"
+                    /место рождения/i,           // "Место рождения"
+                    /в ролях/i,                  // "В ролях"
+                    /filmography/i               // "Фильмография"
+                ];
+                
+                var actorContentCount = 0;
+                for (var k = 0; k < actorContentIndicators.length; k++) {
+                    if (actorContentIndicators[k].test(pageText)) {
+                        actorContentCount++;
+                    }
+                }
+                
+                // Если найдено несколько индикаторов и есть карточки
+                if (actorContentCount >= 2 && document.querySelector('.card')) {
+                    console.log("[Captions Fix v2] Определена страница актёра по контенту (индикаторов:", actorContentCount + ")");
                     return true;
                 }
                 
@@ -204,6 +251,23 @@
                 var url = window.location.href.toLowerCase();
                 if (url.includes('/person/') || url.includes('/actor/') || url.includes('/актер/')) {
                     console.log("[Captions Fix v2] Определена страница актёра по URL");
+                    return true;
+                }
+                
+                // 5. Проверка по наличию блоков с фильмами/сериалами на актёра
+                var hasFilmSections = false;
+                var sections = document.querySelectorAll('h2, h3, .section-title, .block__title');
+                for (var l = 0; l < sections.length; l++) {
+                    var sectionText = (sections[l].textContent || '').toLowerCase();
+                    if ((sectionText.includes('фильм') || sectionText.includes('сериал') || sectionText.includes('сезон')) && 
+                        sectionText.includes('(') && sectionText.includes(')')) {
+                        hasFilmSections = true;
+                        break;
+                    }
+                }
+                
+                if (hasFilmSections && document.querySelector('.card')) {
+                    console.log("[Captions Fix v2] Определена страница актёра по структуре секций");
                     return true;
                 }
                 
@@ -268,9 +332,10 @@
         // Генерация динамического CSS
         self.generateCSS = function() {
             var shouldShow = self.shouldShowCaptions();
+            var isActorPage = self.isActorPage();
             
-            if (shouldShow) {
-                // ПОКАЗЫВАТЬ в разрешённых разделах
+            if (shouldShow && !isActorPage) {
+                // ПОКАЗЫВАТЬ в разрешённых разделах (но не на страницах актёров)
                 return `
                     /* Captions Fix v2 - ПОКАЗЫВАТЬ названия в этом разделе */
                     body .card:not(.card--collection) .card__age,
@@ -281,7 +346,7 @@
                     }
                 `;
             } else {
-                // СКРЫВАТЬ в остальных разделах и на страницах актёров
+                // СКРЫВАТЬ на страницах актёров и в других разделах
                 return `
                     /* Captions Fix v2 - СКРЫВАТЬ названия (страница актёра или другой раздел) */
                     body .card:not(.card--collection) .card__age,
@@ -289,17 +354,34 @@
                         display: none !important;
                     }
                     
-                    /* Дополнительные селекторы для страниц актёров */
-                    body .person-films .card__age,
-                    body .person-films .card__title,
-                    body .filmography .card__age,
-                    body .filmography .card__title,
-                    body .known-for .card__age,
-                    body .known-for .card__title,
-                    body [data-type="person"] .card__age,
-                    body [data-type="person"] .card__title {
+                    /* Усиленные селекторы для страниц актёров - СКРЫТЬ ВСЁ */
+                    body .card .card__age,
+                    body .card .card__title,
+                    body .card .card__info,
+                    body .card .card__subtitle,
+                    body .card .card__description,
+                    body .card span,
+                    body .card div {
                         display: none !important;
                     }
+                    
+                    /* Показываем только изображение в карточке на странице актёра */
+                    body .card .card__poster,
+                    body .card .card__image,
+                    body .card img {
+                        display: block !important;
+                        visibility: visible !important;
+                    }
+                    
+                    /* Специфичные селекторы для страниц актёров */
+                    ${self.ACTOR_PAGE_SELECTORS.map(function(selector) {
+                        return selector + ' .card__age,\n' +
+                               selector + ' .card__title,\n' +
+                               selector + ' .card__info,\n' +
+                               selector + ' .card__subtitle {\n' +
+                               '    display: none !important;\n' +
+                               '}\n';
+                    }).join('')}
                 `;
             }
         };
@@ -321,6 +403,12 @@
                     self.addStyles();
                     self.applyToCards();
                 }
+                
+                // Всегда применяем к карточкам на странице актёра (дополнительная проверка)
+                if (currentIsActorPage) {
+                    self.applyToCards();
+                }
+                
             } catch(e) {
                 console.error("[Captions Fix v2] Ошибка проверки:", e);
             }
@@ -356,43 +444,93 @@
             try {
                 var shouldShow = self.shouldShowCaptions();
                 var isActorPage = self.isActorPage();
-                var cards = document.querySelectorAll('.card:not(.card--collection)');
+                
+                // Получаем ВСЕ карточки на странице
+                var cards = document.querySelectorAll('.card');
                 
                 cards.forEach(function(card) {
-                    var age = card.querySelector('.card__age');
-                    var title = card.querySelector('.card__title');
-                    
-                    // Особые проверки для карточек на страницах актёров
-                    var isActorCard = false;
-                    
-                    // Проверяем контекст карточки
-                    var parent = card.closest('.person-films, .filmography, .known-for, [data-type="person"]');
-                    if (parent) {
-                        isActorCard = true;
+                    // Пропускаем коллекции если нужно
+                    if (card.classList.contains('card--collection') && !isActorPage) {
+                        return;
                     }
                     
-                    // Если карточка находится на странице актёра или это карточка в контексте актёра
-                    if (isActorPage || isActorCard) {
+                    var age = card.querySelector('.card__age');
+                    var title = card.querySelector('.card__title');
+                    var info = card.querySelector('.card__info');
+                    var subtitle = card.querySelector('.card__subtitle');
+                    
+                    // Если это страница актёра - СКРЫВАЕМ ВСЕ текстовые элементы
+                    if (isActorPage) {
+                        // Скрываем все возможные текстовые элементы
                         if (age) {
                             age.style.display = 'none';
                             age.style.opacity = '0';
+                            age.style.visibility = 'hidden';
                         }
                         if (title) {
                             title.style.display = 'none';
                             title.style.opacity = '0';
+                            title.style.visibility = 'hidden';
+                        }
+                        if (info) {
+                            info.style.display = 'none';
+                            info.style.opacity = '0';
+                            info.style.visibility = 'hidden';
+                        }
+                        if (subtitle) {
+                            subtitle.style.display = 'none';
+                            subtitle.style.opacity = '0';
+                            subtitle.style.visibility = 'hidden';
+                        }
+                        
+                        // Дополнительно: скрываем все span и div внутри карточки кроме изображений
+                        var textElements = card.querySelectorAll('span, div:not(.card__poster):not(.card__image)');
+                        for (var i = 0; i < textElements.length; i++) {
+                            var elem = textElements[i];
+                            // Проверяем, содержит ли элемент текст
+                            if (elem.textContent && elem.textContent.trim() && 
+                                !elem.classList.contains('card__poster') &&
+                                !elem.classList.contains('card__image')) {
+                                elem.style.display = 'none';
+                                elem.style.opacity = '0';
+                                elem.style.visibility = 'hidden';
+                            }
                         }
                     } else {
                         // Обычные карточки
                         if (age) {
                             age.style.display = shouldShow ? 'block' : 'none';
                             age.style.opacity = shouldShow ? '1' : '0';
+                            age.style.visibility = shouldShow ? 'visible' : 'hidden';
                         }
                         if (title) {
                             title.style.display = shouldShow ? 'block' : 'none';
                             title.style.opacity = shouldShow ? '1' : '0';
+                            title.style.visibility = shouldShow ? 'visible' : 'hidden';
                         }
                     }
                 });
+                
+                // Дополнительно: скрываем элементы в блоках актёра
+                if (isActorPage) {
+                    self.ACTOR_PAGE_SELECTORS.forEach(function(selector) {
+                        var blocks = document.querySelectorAll(selector);
+                        blocks.forEach(function(block) {
+                            var textElements = block.querySelectorAll('.card__age, .card__title, .card__info, .card__subtitle, span, div');
+                            textElements.forEach(function(elem) {
+                                if (elem.textContent && elem.textContent.trim() &&
+                                    !elem.classList.contains('card__poster') &&
+                                    !elem.classList.contains('card__image') &&
+                                    !elem.querySelector('img')) {
+                                    elem.style.display = 'none';
+                                    elem.style.opacity = '0';
+                                    elem.style.visibility = 'hidden';
+                                }
+                            });
+                        });
+                    });
+                }
+                
             } catch(e) {
                 console.error("[Captions Fix v2] Ошибка применения к карточкам:", e);
             }
@@ -444,12 +582,22 @@
                         for (var j = 0; j < mutation.addedNodes.length; j++) {
                             var node = mutation.addedNodes[j];
                             if (node.nodeType === 1) {
-                                if (node.matches && (
-                                    node.matches('.person-header, .actor-profile, .person-info, .biography, .filmography, .known-for') ||
-                                    node.hasAttribute('data-type') && node.getAttribute('data-type') === 'person'
-                                )) {
-                                    shouldCheck = true;
-                                    break;
+                                // Проверяем все селекторы актёров
+                                var selectors = self.ACTOR_PAGE_SELECTORS.concat([
+                                    '.person-header', '.actor-profile', '.person-info',
+                                    '.biography', '.filmography', '.known-for',
+                                    '[data-type="person"]', '[data-page="person"]'
+                                ]);
+                                
+                                for (var k = 0; k < selectors.length; k++) {
+                                    if (node.matches && node.matches(selectors[k])) {
+                                        shouldCheck = true;
+                                        break;
+                                    }
+                                    if (node.querySelector && node.querySelector(selectors[k])) {
+                                        shouldCheck = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -464,12 +612,13 @@
                 }
             });
             
+            // Более агрессивное наблюдение для страниц актёров
             self.observer.observe(document.body, {
                 childList: true,
                 subtree: true,
                 characterData: true,
                 attributes: true,
-                attributeFilter: ['class']
+                attributeFilter: ['class', 'style']
             });
         };
         
@@ -486,13 +635,15 @@
             console.log("Страница актёра:", isActorPage);
             console.log("Показывать названия:", shouldShow);
             console.log("Текущий CSS:", self.styleElement ? self.styleElement.textContent.substring(0, 200) + "..." : "нет");
+            console.log("Карточек на странице:", document.querySelectorAll('.card').length);
             console.log("========================");
             
             return {
                 section: section,
                 type: type,
                 isActorPage: isActorPage,
-                shouldShow: shouldShow
+                shouldShow: shouldShow,
+                cardCount: document.querySelectorAll('.card').length
             };
         };
         
@@ -507,6 +658,44 @@
             self.applyToCards();
         };
         
+        // Специальная функция для принудительного скрытия на странице актёра
+        self.forceHideOnActorPage = function() {
+            if (self.isActorPage()) {
+                // Создаём супер-селектор для скрытия всего
+                var forceStyle = document.createElement('style');
+                forceStyle.id = 'captions-force-hide-actor';
+                forceStyle.textContent = `
+                    /* СИЛЬНОЕ СКРЫТИЕ ДЛЯ СТРАНИЦЫ АКТЁРА */
+                    .card * {
+                        display: none !important;
+                        visibility: hidden !important;
+                        opacity: 0 !important;
+                    }
+                    
+                    .card .card__poster,
+                    .card .card__image,
+                    .card img {
+                        display: block !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                    }
+                    
+                    /* Скрываем ВСЕ текстовые элементы на странице актёра */
+                    [data-page="person"] .card__age,
+                    [data-page="person"] .card__title,
+                    [data-page="person"] .card__info,
+                    [data-page="person"] .card__subtitle,
+                    [data-page="person"] span,
+                    [data-page="person"] div:not(.card__poster):not(.card__image) {
+                        display: none !important;
+                    }
+                `;
+                
+                document.head.appendChild(forceStyle);
+                console.log("[Captions Fix v2] Принудительно скрыты все названия на странице актёра");
+            }
+        };
+        
         // Очистка
         self.destroy = function() {
             if (self.observer) {
@@ -517,6 +706,9 @@
                 self.styleElement.remove();
                 self.styleElement = null;
             }
+            var forceStyle = document.getElementById('captions-force-hide-actor');
+            if (forceStyle) forceStyle.remove();
+            
             window.captions_fix_plugin_v2 = false;
             console.log("[Captions Fix v2] Остановлен");
         };
@@ -548,6 +740,11 @@
     window.hideCaptions = function() {
         plugin.forceHide();
         console.log("[Captions Fix] Принудительно скрыть названия");
+    };
+    
+    // Специальная команда для страниц актёров
+    window.hideActorCaptions = function() {
+        plugin.forceHideOnActorPage();
     };
     
     // Экспортируем плагин

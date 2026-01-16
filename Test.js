@@ -2,16 +2,13 @@
     "use strict";
 
     if (typeof Lampa === "undefined") return;
-    if (window.captions_fix_plugin_v3) return;
-    window.captions_fix_plugin_v3 = true;
-
-    console.log("[Captions Fix v3] Запущен");
+    if (window.captions_fix_plugin_v4) return;
+    window.captions_fix_plugin_v4 = true;
 
     function CaptionsFix() {
         var self = this;
         self.lastMode = null;
 
-        // Ключевые слова разрешённых разделов
         self.SECTION_KEYWORDS = [
             'релиз', 'release',
             'избран', 'favorite',
@@ -20,40 +17,38 @@
             'поиск', 'search'
         ];
 
-        // Быстрое определение: показывать или нет
-        self.shouldShow = function () {
-            try {
-                var text = (
-                    (document.querySelector('.head__title')?.textContent || '') +
-                    document.body.className +
-                    location.hash
-                ).toLowerCase();
-
-                return self.SECTION_KEYWORDS.some(k => text.includes(k));
-            } catch (e) {
-                return false;
-            }
+        self.isMoviePage = function () {
+            return !!(
+                document.querySelector('.full-start, .card__view, .player') ||
+                location.hash.includes('card')
+            );
         };
 
-        // Мгновенная генерация CSS
+        self.shouldShowList = function () {
+            var text = (
+                (document.querySelector('.head__title')?.textContent || '') +
+                document.body.className +
+                location.hash
+            ).toLowerCase();
+
+            return self.SECTION_KEYWORDS.some(k => text.includes(k));
+        };
+
         self.updateCSS = function () {
-            var mode = self.shouldShow() ? 'show' : 'hide';
+            var showList = self.shouldShowList();
+            var moviePage = self.isMoviePage();
+
+            var mode = showList || moviePage ? 'show' : 'hide';
             if (mode === self.lastMode) return;
             self.lastMode = mode;
 
-            var css = mode === 'show'
-                ? `
-                body .card:not(.card--collection) .card__title,
-                body .card:not(.card--collection) .card__age {
-                    display: block !important;
-                    opacity: 1 !important;
-                    visibility: visible !important;
-                }`
-                : `
-                body .card:not(.card--collection) .card__title,
-                body .card:not(.card--collection) .card__age {
-                    display: none !important;
-                }`;
+            var css = `
+            body .card:not(.card--collection) .card__title,
+            body .card:not(.card--collection) .card__age {
+                display: ${mode === 'show' ? 'block' : 'none'} !important;
+                opacity: ${mode === 'show' ? '1' : '0'} !important;
+                visibility: ${mode === 'show' ? 'visible' : 'hidden'} !important;
+            }`;
 
             var style = document.getElementById('captions-fix-style');
             if (!style) {
@@ -64,10 +59,8 @@
             style.textContent = css;
         };
 
-        // Observer — реагирует сразу при рендере
         self.observe = function () {
             self.updateCSS();
-
             new MutationObserver(self.updateCSS).observe(document.body, {
                 childList: true,
                 subtree: true,
@@ -77,9 +70,7 @@
         };
     }
 
-    // 🔥 ИНИЦИАЛИЗАЦИЯ БЕЗ ЗАДЕРЖКИ
     var plugin = new CaptionsFix();
-
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', plugin.observe);
     } else {

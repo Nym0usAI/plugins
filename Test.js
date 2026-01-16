@@ -2,13 +2,13 @@
     'use strict';
 
     if (typeof Lampa === 'undefined') return;
-    if (window.captions_fix_balanced) return;
-    window.captions_fix_balanced = true;
+    if (window.captions_fix_balanced_v2) return;
+    window.captions_fix_balanced_v2 = true;
 
-    console.log('[Captions Fix] Balanced FINAL started');
+    console.log('[Captions Fix] Balanced v2 started');
 
     /* =======================
-       SECTION KEYWORDS (основные экраны)
+       SECTION KEYWORDS
     ======================= */
 
     const SECTIONS = {
@@ -19,11 +19,11 @@
         search: ['поиск', 'search', 'find']
     };
 
-    const STYLE_ID = 'captions-fix-balanced-style';
+    const STYLE_ID = 'captions-fix-balanced-v2-style';
     let lastSection = '';
 
     /* =======================
-       SECTION DETECTION (ЭКРАНЫ)
+       SECTION DETECTION
     ======================= */
 
     function detectSection() {
@@ -41,7 +41,6 @@
     function detectSectionType(name) {
         if (!name) return '';
         const v = name.toLowerCase();
-
         for (const t in SECTIONS) {
             if (SECTIONS[t].some(k => v.includes(k))) return t;
         }
@@ -53,7 +52,7 @@
     }
 
     /* =======================
-       STYLES
+       CSS INJECTION
     ======================= */
 
     function injectCSS() {
@@ -75,23 +74,11 @@
                 display: none !important;
             }
 
-            /* === РЕКОМЕНДАЦИИ / ПОХОЖИЕ (ВСЕГДА ПОКАЗЫВАТЬ) === */
-            .items__title,
-            .line__title {
-                /* якоря для блоков */
-            }
-
-            .items__title:has-text("Рекомен"),
-            .items__title:has-text("Похож"),
-            .line__title:has-text("Рекомен"),
-            .line__title:has-text("Похож") {
-                display: block;
-            }
-
-            .items__title ~ .items .card .card__title,
-            .items__title ~ .items .card .card__age,
-            .line__title ~ .items .card .card__title,
-            .line__title ~ .items .card .card__age {
+            /* === РЕКОМЕНДАЦИИ / ПОХОЖИЕ === */
+            .recommendation-card .card__title,
+            .recommendation-card .card__age,
+            .similar-card .card__title,
+            .similar-card .card__age {
                 display: block !important;
                 opacity: 1 !important;
                 visibility: visible !important;
@@ -101,13 +88,34 @@
     }
 
     /* =======================
-       CORE
+       CORE LOGIC
     ======================= */
 
-    function update() {
+    function applyToCards() {
         const show = shouldShowGlobal();
         document.body.classList.toggle('captions-show', show);
         document.body.classList.toggle('captions-hide', !show);
+
+        const selectors = ['.card:not(.card--collection)', '.recommendation-card', '.similar-card'];
+        selectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(card => {
+                ['.card__title', '.card__age'].forEach(sub => {
+                    const el = card.querySelector(sub);
+                    if (el) {
+                        el.style.display = show ? 'block' : 'none';
+                        el.style.opacity = show ? '1' : '0';
+                    }
+                });
+            });
+        });
+    }
+
+    function update() {
+        const current = detectSection();
+        if (current !== lastSection) {
+            lastSection = current;
+            applyToCards();
+        }
     }
 
     function init() {
@@ -116,10 +124,11 @@
 
         new MutationObserver(update).observe(document.body, {
             childList: true,
-            subtree: true
+            subtree: true,
+            attributes: true
         });
 
-        console.log('[Captions Fix] Balanced FINAL initialized');
+        console.log('[Captions Fix] Balanced v2 initialized');
     }
 
     if (document.readyState === 'loading') {
@@ -128,4 +137,16 @@
         init();
     }
 
+    // Debug
+    window.debugCaptions = function () {
+        const sec = detectSection();
+        const type = detectSectionType(sec);
+        const show = shouldShowGlobal();
+        console.log('=== Captions Fix v2 Debug ===', { sec, type, show });
+        return { sec, type, show };
+    };
+
+    // Force show/hide
+    window.showCaptions = () => { document.body.classList.add('captions-show'); applyToCards(); console.log('[Captions Fix] Show captions'); };
+    window.hideCaptions = () => { document.body.classList.add('captions-hide'); applyToCards(); console.log('[Captions Fix] Hide captions'); };
 })();

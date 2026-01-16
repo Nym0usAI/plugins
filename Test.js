@@ -7,12 +7,31 @@
 
     console.log('[Captions Fix] Balanced version started');
 
+    /* =======================
+       SECTION KEYWORDS
+    ======================= */
+
     const SECTIONS = {
         releases: ['релиз', 'release', 'новин'],
         favorites: ['избран', 'favorit', 'bookmark'],
         history: ['истор', 'history', 'watch'],
         torrents: ['торрент', 'torrent', 'download'],
-        search: ['поиск', 'search', 'find']
+        search: ['поиск', 'search', 'find'],
+
+        recommendations: [
+            'рекоменд',
+            'recommend',
+            'suggest',
+            'for you',
+            'вам понрав'
+        ],
+
+        similar: [
+            'похож',
+            'similar',
+            'related',
+            'also like'
+        ]
     };
 
     const STYLE_ID = 'captions-fix-balanced-style';

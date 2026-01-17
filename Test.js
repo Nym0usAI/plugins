@@ -13,6 +13,7 @@
         self.styleElement = null;
         self.observer = null;
         self.lastSection = "";
+        self.isActorPage = false;
         
         // РАЗДЕЛЫ ГДЕ НАЗВАНИЯ ДОЛЖНЫ ПОКАЗЫВАТЬСЯ
         self.SHOW_IN_SECTIONS = [
@@ -29,8 +30,25 @@
             'favorites': ['избранн', 'favorit', 'закладк', 'bookmark'],
             'history': ['истори', 'histor', 'просмотр', 'watch'],
             'torrents': ['торрент', 'torrent', 'загрузк', 'download'],
-            'search': ['поиск', 'search', 'искан', 'find']
+            'search': ['поиск', 'search', 'искан', 'find'],
+            'actor': ['актер', 'актёр', 'actor', 'персона', 'person'] // Добавлено для актёров
         };
+        
+        // Признаки страницы актёра/режиссёра в URL
+        self.ACTOR_URL_PATTERNS = [
+            'component=actor',
+            'component=person',
+            'job=acting',
+            'job=directing',
+            'type=actor',
+            'type=person',
+            'view=actor',
+            'view=person',
+            '/actor/',
+            '/person/',
+            'id=', // ID обычно есть на страницах персон
+            '&job=' // Параметр job указывает на страницу персоны
+        ];
         
         // Инициализация
         self.init = function() {
@@ -45,11 +63,17 @@
                 return;
             }
             
+            // Проверяем страницу актёра при инициализации
+            self.checkIfActorPage();
+            
             // Добавляем стили сразу
             self.addStyles();
             
             // Запускаем наблюдатель
             self.startObserver();
+            
+            // Запускаем наблюдатель за URL
+            self.setupURLWatcher();
             
             // ПЕРВОНАЧАЛЬНАЯ ПРОВЕРКА СРАЗУ
             self.checkAndUpdate();
@@ -58,11 +82,71 @@
             console.log("[Captions Fix v2] Инициализирован");
         };
         
-        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА - 8 СПОСОБОВ
+        // Проверка является ли текущая страница страницей актёра/режиссёра
+        self.checkIfActorPage = function() {
+            self.isActorPage = false;
+            
+            try {
+                // Проверяем URL
+                var currentUrl = window.location.href.toLowerCase();
+                var currentHash = window.location.hash.toLowerCase();
+                
+                // Проверяем URL на наличие признаков страницы персоны
+                for (var i = 0; i < self.ACTOR_URL_PATTERNS.length; i++) {
+                    if (currentUrl.includes(self.ACTOR_URL_PATTERNS[i]) || 
+                        currentHash.includes(self.ACTOR_URL_PATTERNS[i])) {
+                        self.isActorPage = true;
+                        console.log("[Captions Fix v2] Найдена страница персоны по URL:", self.ACTOR_URL_PATTERNS[i]);
+                        break;
+                    }
+                }
+                
+                // Дополнительная проверка по DOM
+                if (!self.isActorPage) {
+                    // Проверяем наличие элементов характерных для страницы персоны
+                    var personElements = document.querySelectorAll(
+                        '.actor-info, .person-info, .director-info, .profile-info, ' +
+                        '[data-component="actor"], [data-component="person"], ' +
+                        '.filmography, .credits, .works'
+                    );
+                    
+                    if (personElements.length > 0) {
+                        self.isActorPage = true;
+                        console.log("[Captions Fix v2] Найдена страница персоны по DOM элементам");
+                    }
+                    
+                    // Проверяем заголовки
+                    var titles = document.querySelectorAll('.head__title, h1, .page-title');
+                    for (var j = 0; j < titles.length; j++) {
+                        var text = titles[j].textContent.toLowerCase();
+                        if (text.includes('актер') || text.includes('актёр') || 
+                            text.includes('actor') || text.includes('режиссёр') ||
+                            text.includes('режиссер') || text.includes('director') ||
+                            text.includes('продюсер') || text.includes('producer')) {
+                            self.isActorPage = true;
+                            console.log("[Captions Fix v2] Найдена страница персоны по заголовку:", text);
+                            break;
+                        }
+                    }
+                }
+                
+            } catch(e) {
+                console.error("[Captions Fix v2] Ошибка проверки страницы персоны:", e);
+            }
+            
+            return self.isActorPage;
+        };
+        
+        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА - 8 СПОСОБОВ (обновлено с учётом страниц актёров)
         self.getCurrentSection = function() {
             var section = "";
             
             try {
+                // ПРОВЕРКА СТРАНИЦЫ АКТЁРА ПЕРВЫМ ДЕЛОМ
+                if (self.isActorPage) {
+                    return "actor";
+                }
+                
                 // СПОСОБ 1: Из заголовка в шапке
                 var headerTitle = document.querySelector('.head__title');
                 if (headerTitle && headerTitle.textContent) {
@@ -91,14 +175,17 @@
                 if (hash.includes('torrent') || hash.includes('торрент')) return "Торренты";
                 if (hash.includes('release') || hash.includes('релиз')) return "Релизы";
                 if (hash.includes('search') || hash.includes('поиск')) return "Поиск";
+                if (hash.includes('actor') || hash.includes('актер') || hash.includes('актёр')) return "actor";
+                if (hash.includes('component=actor') || hash.includes('component=person')) return "actor";
                 
                 // СПОСОБ 4: Из классов body
-                var bodyClass = document.body.className;
+                var bodyClass = document.body.className.toLowerCase();
                 if (bodyClass.includes('favorite') || bodyClass.includes('избран')) return "Избранное";
                 if (bodyClass.includes('history') || bodyClass.includes('истор')) return "История";
                 if (bodyClass.includes('torrent') || bodyClass.includes('торрент')) return "Торренты";
                 if (bodyClass.includes('release') || bodyClass.includes('релиз')) return "Релизы";
                 if (bodyClass.includes('search') || bodyClass.includes('поиск')) return "Поиск";
+                if (bodyClass.includes('actor') || bodyClass.includes('актер')) return "actor";
                 
                 // СПОСОБ 5: Из активного меню/навигации
                 var activeNav = document.querySelector('.navigation__item.active, .menu__item.active');
@@ -120,10 +207,11 @@
                 }
                 
                 // СПОСОБ 7: Из атрибутов data-*
-                var dataSection = document.querySelector('[data-section], [data-page]');
+                var dataSection = document.querySelector('[data-section], [data-page], [data-component]');
                 if (dataSection) {
                     var attr = dataSection.getAttribute('data-section') || 
-                               dataSection.getAttribute('data-page');
+                               dataSection.getAttribute('data-page') ||
+                               dataSection.getAttribute('data-component');
                     if (attr) return attr;
                 }
                 
@@ -136,6 +224,7 @@
                 if (pageText.includes('торренты') || pageText.includes('torrent')) return "Торренты";
                 if (pageText.includes('релизы') || pageText.includes('release')) return "Релизы";
                 if (pageText.includes('поиск') || pageText.includes('search')) return "Поиск";
+                if (pageText.includes('актер') || pageText.includes('актёр') || pageText.includes('actor')) return "actor";
                 
             } catch(e) {
                 console.error("[Captions Fix v2] Ошибка определения раздела:", e);
@@ -144,11 +233,16 @@
             return section || "";
         };
         
-        // Определение типа раздела по ключевым словам
+        // Определение типа раздела по ключевым словам (обновлено)
         self.detectSectionType = function(sectionName) {
             if (!sectionName) return '';
             
             var name = sectionName.toLowerCase();
+            
+            // Проверяем страницу актёра
+            if (self.isActorPage || name === 'actor' || name.includes('актер') || name.includes('актёр')) {
+                return 'actor';
+            }
             
             // Проверяем по ключевым словам
             for (var type in self.SECTION_KEYWORDS) {
@@ -175,22 +269,57 @@
             return '';
         };
         
-        // Проверка, нужно ли показывать названия в текущем разделе
+        // Проверка, нужно ли показывать названия в текущем разделе (обновлено)
         self.shouldShowCaptions = function() {
+            // На страницах актёров НЕ показываем названия
+            if (self.isActorPage) {
+                console.log("[Captions Fix v2] Страница актёра - скрываем названия");
+                return false;
+            }
+            
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
             
             console.log("[Captions Fix v2] Раздел:", section, "Тип:", sectionType);
             
             // Если определили тип раздела - показываем
-            return sectionType !== '';
+            return sectionType !== '' && sectionType !== 'actor';
         };
         
-        // Генерация динамического CSS
+        // Генерация динамического CSS (обновлено)
         self.generateCSS = function() {
             var shouldShow = self.shouldShowCaptions();
             
-            if (shouldShow) {
+            if (self.isActorPage) {
+                // СКРЫВАТЬ названия на странице актёра/режиссёра
+                return `
+                    /* Captions Fix v2 - СКРЫТЬ названия на странице актёра/режиссёра */
+                    body .card:not(.card--collection) .card__age,
+                    body .card:not(.card--collection) .card__title,
+                    body .card:not(.card--collection) .card__subtitle,
+                    body .card:not(.card--collection) .card__caption,
+                    body .card:not(.card--collection) .card__description,
+                    body .card:not(.card--collection) .card__info,
+                    body .card:not(.card--collection) .card__text {
+                        display: none !important;
+                        opacity: 0 !important;
+                        visibility: hidden !important;
+                        height: 0 !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    
+                    /* Оптимизация отображения карточек без названий */
+                    body .card:not(.card--collection) {
+                        min-height: auto !important;
+                    }
+                    
+                    body .card:not(.card--collection) .card__body {
+                        padding: 0 !important;
+                        min-height: 0 !important;
+                    }
+                `;
+            } else if (shouldShow) {
                 // ПОКАЗЫВАТЬ в текущем разделе
                 return `
                     /* Captions Fix v2 - ПОКАЗЫВАТЬ названия в этом разделе */
@@ -213,14 +342,24 @@
             }
         };
         
-        // Проверка и обновление
+        // Проверка и обновление (обновлено)
         self.checkAndUpdate = function() {
             try {
-                var currentSection = self.getCurrentSection();
+                // Проверяем, не изменилась ли страница на страницу актёра
+                var wasActorPage = self.isActorPage;
+                self.checkIfActorPage();
                 
-                // Если раздел изменился
-                if (currentSection !== self.lastSection) {
-                    console.log("[Captions Fix v2] Смена раздела:", self.lastSection, "->", currentSection);
+                var currentSection = self.getCurrentSection();
+                var sectionChanged = currentSection !== self.lastSection;
+                var pageTypeChanged = wasActorPage !== self.isActorPage;
+                
+                // Если что-то изменилось
+                if (sectionChanged || pageTypeChanged) {
+                    console.log("[Captions Fix v2] Смена раздела:", 
+                        "Была страница актёра:", wasActorPage, 
+                        "Стала:", self.isActorPage,
+                        "Раздел:", self.lastSection, "->", currentSection);
+                    
                     self.lastSection = currentSection;
                     self.addStyles();
                     self.applyToCards();
@@ -255,10 +394,11 @@
             self.styleElement = style;
         };
         
-        // Применение к существующим карточкам (БЕЗ ЗАДЕРЖКИ)
+        // Применение к существующим карточкам (БЕЗ ЗАДЕРЖКИ, обновлено)
         self.applyToCards = function() {
             try {
                 var shouldShow = self.shouldShowCaptions();
+                var isActor = self.isActorPage;
                 var cards = document.querySelectorAll('.card:not(.card--collection)');
                 
                 cards.forEach(function(card) {
@@ -266,13 +406,25 @@
                     var title = card.querySelector('.card__title');
                     
                     if (age) {
-                        age.style.display = shouldShow ? 'block' : 'none';
-                        age.style.opacity = shouldShow ? '1' : '0';
+                        if (isActor) {
+                            age.style.display = 'none';
+                            age.style.opacity = '0';
+                            age.style.visibility = 'hidden';
+                        } else {
+                            age.style.display = shouldShow ? 'block' : 'none';
+                            age.style.opacity = shouldShow ? '1' : '0';
+                        }
                     }
                     
                     if (title) {
-                        title.style.display = shouldShow ? 'block' : 'none';
-                        title.style.opacity = shouldShow ? '1' : '0';
+                        if (isActor) {
+                            title.style.display = 'none';
+                            title.style.opacity = '0';
+                            title.style.visibility = 'hidden';
+                        } else {
+                            title.style.display = shouldShow ? 'block' : 'none';
+                            title.style.opacity = shouldShow ? '1' : '0';
+                        }
                     }
                 });
             } catch(e) {
@@ -280,7 +432,7 @@
             }
         };
         
-        // Наблюдатель за изменениями (БЕЗ ЗАДЕРЖКИ)
+        // Наблюдатель за изменениями (БЕЗ ЗАДЕРЖЕК)
         self.startObserver = function() {
             if (self.observer) return;
             
@@ -339,6 +491,68 @@
             });
         };
         
+        // Наблюдатель за URL (БЕЗ ЗАДЕРЖЕК)
+        self.setupURLWatcher = function() {
+            var lastURL = window.location.href;
+            
+            // Используем MutationObserver для мгновенного отслеживания изменений
+            var urlObserver = new MutationObserver(function() {
+                var currentURL = window.location.href;
+                if (currentURL !== lastURL) {
+                    lastURL = currentURL;
+                    
+                    // Проверяем мгновенно, без задержки
+                    requestAnimationFrame(function() {
+                        var wasActorPage = self.isActorPage;
+                        self.checkIfActorPage();
+                        
+                        if (wasActorPage !== self.isActorPage) {
+                            console.log("[Captions Fix v2] URL изменился мгновенно, страница актёра:", self.isActorPage);
+                            self.checkAndUpdate();
+                        }
+                    });
+                }
+            });
+            
+            // Наблюдаем за изменениями в body
+            urlObserver.observe(document.body, {
+                childList: false,
+                subtree: false,
+                attributes: false,
+                characterData: false
+            });
+            
+            // Перехватываем history API для мгновенного отслеживания
+            var originalPushState = history.pushState;
+            var originalReplaceState = history.replaceState;
+            
+            history.pushState = function() {
+                originalPushState.apply(this, arguments);
+                // Мгновенная проверка после pushState
+                requestAnimationFrame(function() {
+                    self.checkIfActorPage();
+                    self.checkAndUpdate();
+                });
+            };
+            
+            history.replaceState = function() {
+                originalReplaceState.apply(this, arguments);
+                // Мгновенная проверка после replaceState
+                requestAnimationFrame(function() {
+                    self.checkIfActorPage();
+                    self.checkAndUpdate();
+                });
+            };
+            
+            // Отслеживаем hashchange
+            window.addEventListener('hashchange', function() {
+                requestAnimationFrame(function() {
+                    self.checkIfActorPage();
+                    self.checkAndUpdate();
+                });
+            }, false);
+        };
+        
         // Дебаг функция - показывает текущий раздел
         self.debugInfo = function() {
             var section = self.getCurrentSection();
@@ -349,13 +563,15 @@
             console.log("Раздел:", section);
             console.log("Тип:", type);
             console.log("Показывать названия:", shouldShow);
+            console.log("Страница актёра:", self.isActorPage);
             console.log("Текущий CSS:", self.styleElement ? self.styleElement.textContent.substring(0, 200) + "..." : "нет");
             console.log("========================");
             
             return {
                 section: section,
                 type: type,
-                shouldShow: shouldShow
+                shouldShow: shouldShow,
+                isActorPage: self.isActorPage
             };
         };
         
@@ -417,225 +633,3 @@
     window.CaptionsFixPlugin = plugin;
     
 })();
-// Проверка является ли текущая страница страницей актёра/режиссёра
-self.checkIfActorPage = function() {
-    self.isActorPage = false;
-    
-    try {
-        // Проверяем URL
-        var currentUrl = window.location.href.toLowerCase();
-        var currentHash = window.location.hash.toLowerCase();
-        
-        // Признаки страниц актёров, режиссёров, продюсеров и т.д.
-        var personPagePatterns = [
-            'component=actor',
-            'component=person',
-            'job=acting',
-            'job=directing',
-            'job=director',
-            'job=producer',
-            'type=actor',
-            'type=director',
-            'type=person',
-            '/actor/',
-            '/director/',
-            '/person/',
-            'id=', // ID обычно присутствует на страницах персон
-            '&job=' // Параметр job указывает на страницу персоны
-        ];
-        
-        // Проверяем URL на наличие признаков страницы персоны
-        for (var i = 0; i < personPagePatterns.length; i++) {
-            if (currentUrl.includes(personPagePatterns[i]) || 
-                currentHash.includes(personPagePatterns[i])) {
-                self.isActorPage = true;
-                break;
-            }
-        }
-        
-        // Проверяем структуру DOM (дополнительная проверка)
-        if (!self.isActorPage) {
-            // Проверяем наличие элементов характерных для страницы персоны
-            var personElements = document.querySelectorAll(
-                '.actor-info, .actor__info, .person-info, .person__info, ' +
-                '.director-info, .producer-info, ' +
-                '[data-component="actor"], [data-component="person"], ' +
-                '.info-person, .profile-info'
-            );
-            
-            if (personElements.length > 0) {
-                self.isActorPage = true;
-            }
-            
-            // Проверяем заголовки на странице
-            var personTitles = document.querySelectorAll(
-                'h1, h2, .page-title, .head__title, .person-name, .actor-name'
-            );
-            
-            for (var j = 0; j < personTitles.length; j++) {
-                var text = personTitles[j].textContent.toLowerCase();
-                if (text.includes('актер') || text.includes('актёр') || 
-                    text.includes('actor') || text.includes('режиссёр') || 
-                    text.includes('режиссер') || text.includes('director') ||
-                    text.includes('продюсер') || text.includes('producer') ||
-                    text.includes('сценарист') || text.includes('writer')) {
-                    self.isActorPage = true;
-                    break;
-                }
-            }
-            
-            // Проверяем наличие фильмографии (характерно для страниц персон)
-            var filmographySections = document.querySelectorAll(
-                '.filmography, .credits, .works, .movies-list, .actor-movies'
-            );
-            
-            if (filmographySections.length > 0) {
-                // Проверяем контекст - если это не главная страница с похожим названием
-                var isMainPage = document.querySelector('.main-page, .home-page, [data-page="main"]');
-                if (!isMainPage) {
-                    self.isActorPage = true;
-                }
-            }
-        }
-        
-    } catch(e) {
-        console.error("[Captions Fix v2] Ошибка проверки страницы персоны:", e);
-    }
-    
-    return self.isActorPage;
-};
-
-// Генерация CSS с учётом страницы актёра
-self.generateCSS = function() {
-    var shouldShow = self.shouldShowCaptions();
-    var isPersonPage = self.isActorPage;
-    
-    if (isPersonPage) {
-        // СКРЫВАТЬ названия на странице актёра/режиссёра
-        return `
-            /* Captions Fix v2 - СКРЫТЬ названия на странице актёра/режиссёра */
-            body .card:not(.card--collection) .card__age,
-            body .card:not(.card--collection) .card__title,
-            body .card:not(.card--collection) .card__subtitle,
-            body .card:not(.card--collection) .card__caption,
-            body .card:not(.card--collection) .card__description,
-            body .card:not(.card--collection) .card__info,
-            body .card:not(.card--collection) .card__text {
-                display: none !important;
-                opacity: 0 !important;
-                visibility: hidden !important;
-                height: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            
-            /* Оптимизация отображения карточек без названий */
-            body .card:not(.card--collection) {
-                min-height: auto !important;
-            }
-            
-            body .card:not(.card--collection) .card__body {
-                padding: 0 !important;
-                min-height: 0 !important;
-            }
-        `;
-    } else if (shouldShow) {
-        // ПОКАЗЫВАТЬ в разрешённых разделах
-        return `
-            /* Captions Fix v2 - ПОКАЗЫВАТЬ названия в этом разделе */
-            body .card:not(.card--collection) .card__age,
-            body .card:not(.card--collection) .card__title {
-                display: block !important;
-                opacity: 1 !important;
-                visibility: visible !important;
-            }
-        `;
-    } else {
-        // СКРЫВАТЬ в остальных разделах
-        return `
-            /* Captions Fix v2 - СКРЫВАТЬ названия в этом разделе */
-            body .card:not(.card--collection) .card__age,
-            body .card:not(.card--collection) .card__title {
-                display: none !important;
-            }
-        `;
-    }
-};
-
-// Определение типа раздела с учётом страницы персоны
-self.detectSectionType = function(sectionName) {
-    if (!sectionName) return '';
-    
-    var name = sectionName.toLowerCase();
-    
-    // Проверяем страницу персоны (актёр, режиссёр и т.д.)
-    if (self.isActorPage || 
-        name === 'actor' || 
-        name === 'актер' || 
-        name === 'актёр' ||
-        name.includes('director') ||
-        name.includes('режисс') ||
-        name.includes('person')) {
-        return 'person'; // Возвращаем специальный тип для страниц персон
-    }
-    
-    // Проверяем по ключевым словам для остальных разделов
-    for (var type in self.SECTION_KEYWORDS) {
-        var keywords = self.SECTION_KEYWORDS[type];
-        for (var i = 0; i < keywords.length; i++) {
-            if (name.includes(keywords[i])) {
-                return type;
-            }
-        }
-    }
-    
-    return '';
-};
-
-// Проверка, нужно ли показывать названия (переопределяем для страниц персон)
-self.shouldShowCaptions = function() {
-    // На страницах актёров/режиссёров НЕ показываем названия
-    if (self.isActorPage) {
-        console.log("[Captions Fix v2] Страница персоны - скрываем названия");
-        return false;
-    }
-    
-    var section = self.getCurrentSection();
-    var sectionType = self.detectSectionType(section);
-    
-    console.log("[Captions Fix v2] Раздел:", section, "Тип:", sectionType);
-    
-    // Показываем только в разрешённых разделах
-    return sectionType === 'releases' || 
-           sectionType === 'favorites' || 
-           sectionType === 'history' || 
-           sectionType === 'torrents' || 
-           sectionType === 'search';
-};
-
-// Обновляем проверку при каждом изменении
-self.checkAndUpdate = function() {
-    try {
-        // Проверяем, не изменилась ли страница на страницу персоны
-        var wasActorPage = self.isActorPage;
-        self.checkIfActorPage();
-        
-        var currentSection = self.getCurrentSection();
-        var sectionChanged = currentSection !== self.lastSection;
-        var pageTypeChanged = wasActorPage !== self.isActorPage;
-        
-        // Если что-то изменилось
-        if (sectionChanged || pageTypeChanged) {
-            console.log("[Captions Fix v2] Изменение:", 
-                "Была страница персоны:", wasActorPage, 
-                "Стала:", self.isActorPage,
-                "Раздел:", self.lastSection, "->", currentSection);
-            
-            self.lastSection = currentSection;
-            self.addStyles();
-            self.applyToCards();
-        }
-    } catch(e) {
-        console.error("[Captions Fix v2] Ошибка проверки:", e);
-    }
-};

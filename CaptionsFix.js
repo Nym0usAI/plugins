@@ -2,10 +2,10 @@
     "use strict";
     
     if (typeof Lampa === "undefined") return;
-    if (window.captions_fix_plugin_v2) return;
-    window.captions_fix_plugin_v2 = true;
+    if (window.captions_fix_plugin_v3) return;
+    window.captions_fix_plugin_v3 = true;
     
-    console.log("[Captions Fix v2] Плагин запущен");
+    console.log("[Captions Fix v3] Плагин запущен");
     
     function CaptionsFix() {
         var self = this;
@@ -23,24 +23,31 @@
             "Поиск", "Search", "поиск", "search"
         ];
         
+        // РАЗДЕЛЫ ГДЕ НАЗВАНИЯ ДОЛЖНЫ СКРЫВАТЬСЯ (даже если они в SHOW_IN_SECTIONS)
+        self.HIDE_IN_SECTIONS = [
+            "Подробности", "Details", "Информация", "Info", 
+            "Биография", "Biography", "О персоне", "About",
+            "Актер", "Actor", "Режиссер", "Director"
+        ];
+        
         // Ключевые слова для определения разделов
         self.SECTION_KEYWORDS = {
             'releases': ['релиз', 'release', 'новинк'],
             'favorites': ['избранн', 'favorit', 'закладк', 'bookmark'],
             'history': ['истори', 'histor', 'просмотр', 'watch'],
             'torrents': ['торрент', 'torrent', 'загрузк', 'download'],
-            'search': ['поиск', 'search', 'искан', 'find']
+            'search': ['поиск', 'search', 'искан', 'find'],
+            'details': ['подробност', 'details', 'информац', 'info', 'биографи', 'biography', 'актер', 'actor', 'режиссер', 'director', 'персон', 'person', 'about']
         };
         
         // Инициализация
         self.init = function() {
             if (self.initialized) return;
             
-            console.log("[Captions Fix v2] Инициализация...");
+            console.log("[Captions Fix v3] Инициализация...");
             
-            // Ждём загрузки DOM (без задержки, проверяем сразу)
+            // Ждём загрузки DOM
             if (!document.body) {
-                // Проверяем в следующем цикле event loop без setTimeout
                 requestAnimationFrame(self.init);
                 return;
             }
@@ -55,10 +62,10 @@
             self.checkAndUpdate();
             
             self.initialized = true;
-            console.log("[Captions Fix v2] Инициализирован");
+            console.log("[Captions Fix v3] Инициализирован");
         };
         
-        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА - 8 СПОСОБОВ
+        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА
         self.getCurrentSection = function() {
             var section = "";
             
@@ -67,70 +74,72 @@
                 var headerTitle = document.querySelector('.head__title');
                 if (headerTitle && headerTitle.textContent) {
                     section = headerTitle.textContent.trim();
-                    if (section) return section;
+                    if (section) {
+                        console.log("[Captions Fix] Найден заголовок:", section);
+                        return section;
+                    }
                 }
                 
                 // СПОСОБ 2: Из активной Activity Lampa
                 if (Lampa.Activity && Lampa.Activity.active) {
                     var activity = Lampa.Activity.active();
                     if (activity) {
-                        // Проверяем разные свойства activity
                         if (activity.title) section = activity.title;
                         else if (activity.name) section = activity.name;
                         else if (activity.component && activity.component.title) {
                             section = activity.component.title;
                         }
-                        if (section) return section;
+                        if (section) {
+                            console.log("[Captions Fix] Найдена Activity:", section);
+                            return section;
+                        }
                     }
                 }
                 
-                // СПОСОБ 3: Из URL/hash
+                // СПОСОБ 3: Проверка на раздел "Подробности/Информация"
+                // Ищем элементы характерные для страницы информации о персоне
+                var personInfoElements = document.querySelectorAll('.person__info, .info__block, .details__section, [class*="info"], [class*="detail"]');
+                if (personInfoElements.length > 0) {
+                    // Проверяем есть ли дата рождения или другие признаки страницы персоны
+                    var pageText = document.body.textContent || "";
+                    if (pageText.includes('Дата рождения') || pageText.includes('Date of birth') || 
+                        pageText.includes('Родился') || pageText.includes('Родилась') ||
+                        pageText.includes('Актер') || pageText.includes('Actor') ||
+                        pageText.includes('Режиссер') || pageText.includes('Director')) {
+                        return "Подробности";
+                    }
+                }
+                
+                // СПОСОБ 4: Из URL/hash
                 var hash = window.location.hash.toLowerCase();
+                if (hash.includes('person') || hash.includes('актер') || hash.includes('режиссер') || hash.includes('details')) {
+                    return "Подробности";
+                }
                 if (hash.includes('favorite') || hash.includes('избранн')) return "Избранное";
                 if (hash.includes('history') || hash.includes('истори')) return "История";
                 if (hash.includes('torrent') || hash.includes('торрент')) return "Торренты";
                 if (hash.includes('release') || hash.includes('релиз')) return "Релизы";
                 if (hash.includes('search') || hash.includes('поиск')) return "Поиск";
                 
-                // СПОСОБ 4: Из классов body
+                // СПОСОБ 5: Из классов body
                 var bodyClass = document.body.className;
+                if (bodyClass.includes('person') || bodyClass.includes('details') || bodyClass.includes('info')) {
+                    return "Подробности";
+                }
                 if (bodyClass.includes('favorite') || bodyClass.includes('избран')) return "Избранное";
                 if (bodyClass.includes('history') || bodyClass.includes('истор')) return "История";
                 if (bodyClass.includes('torrent') || bodyClass.includes('торрент')) return "Торренты";
                 if (bodyClass.includes('release') || bodyClass.includes('релиз')) return "Релизы";
                 if (bodyClass.includes('search') || bodyClass.includes('поиск')) return "Поиск";
                 
-                // СПОСОБ 5: Из активного меню/навигации
-                var activeNav = document.querySelector('.navigation__item.active, .menu__item.active');
-                if (activeNav && activeNav.textContent) {
-                    section = activeNav.textContent.trim();
-                    if (section) return section;
-                }
-                
-                // СПОСОБ 6: Из заголовков на странице
-                var pageHeaders = document.querySelectorAll('h1, h2, .page-title, .section-title');
-                for (var i = 0; i < pageHeaders.length; i++) {
-                    if (pageHeaders[i].textContent && pageHeaders[i].offsetParent !== null) {
-                        var text = pageHeaders[i].textContent.trim();
-                        if (text && text.length < 50) { // Не слишком длинные
-                            section = text;
-                            break;
-                        }
-                    }
-                }
-                
-                // СПОСОБ 7: Из атрибутов data-*
-                var dataSection = document.querySelector('[data-section], [data-page]');
-                if (dataSection) {
-                    var attr = dataSection.getAttribute('data-section') || 
-                               dataSection.getAttribute('data-page');
-                    if (attr) return attr;
-                }
-                
-                // СПОСОБ 8: По содержимому страницы
+                // СПОСОБ 6: По содержимому страницы
                 var pageText = document.body.textContent || "";
                 pageText = pageText.toLowerCase();
                 
+                if (pageText.includes('дата рождения') || pageText.includes('date of birth') || 
+                    pageText.includes('родился') || pageText.includes('родилась')) {
+                    return "Подробности";
+                }
                 if (pageText.includes('избранное') || pageText.includes('favorite')) return "Избранное";
                 if (pageText.includes('история') || pageText.includes('history')) return "История";
                 if (pageText.includes('торренты') || pageText.includes('torrent')) return "Торренты";
@@ -138,7 +147,7 @@
                 if (pageText.includes('поиск') || pageText.includes('search')) return "Поиск";
                 
             } catch(e) {
-                console.error("[Captions Fix v2] Ошибка определения раздела:", e);
+                console.error("[Captions Fix] Ошибка определения раздела:", e);
             }
             
             return section || "";
@@ -150,25 +159,21 @@
             
             var name = sectionName.toLowerCase();
             
-            // Проверяем по ключевым словам
-            for (var type in self.SECTION_KEYWORDS) {
-                var keywords = self.SECTION_KEYWORDS[type];
-                for (var i = 0; i < keywords.length; i++) {
-                    if (name.includes(keywords[i])) {
-                        return type;
-                    }
+            // Сначала проверяем разделы где нужно СКРЫВАТЬ (приоритет выше)
+            for (var i = 0; i < self.HIDE_IN_SECTIONS.length; i++) {
+                var hideSection = self.HIDE_IN_SECTIONS[i].toLowerCase();
+                if (name.includes(hideSection) || hideSection.includes(name)) {
+                    return 'hide'; // специальный тип для разделов где скрываем
                 }
             }
             
-            // Прямое сравнение с нашими разделами
-            var lowerSections = self.SHOW_IN_SECTIONS.map(function(s) {
-                return s.toLowerCase();
-            });
-            
-            for (var j = 0; j < lowerSections.length; j++) {
-                if (name.includes(lowerSections[j]) || 
-                    lowerSections[j].includes(name)) {
-                    return self.SHOW_IN_SECTIONS[j].toLowerCase();
+            // Затем проверяем разделы где нужно ПОКАЗЫВАТЬ
+            for (var type in self.SECTION_KEYWORDS) {
+                var keywords = self.SECTION_KEYWORDS[type];
+                for (var j = 0; j < keywords.length; j++) {
+                    if (name.includes(keywords[j])) {
+                        return type;
+                    }
                 }
             }
             
@@ -180,9 +185,14 @@
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
             
-            console.log("[Captions Fix v2] Раздел:", section, "Тип:", sectionType);
+            console.log("[Captions Fix] Раздел:", section, "Тип:", sectionType);
             
-            // Если определили тип раздела - показываем
+            // Если это раздел где нужно скрывать - возвращаем false
+            if (sectionType === 'hide') {
+                return false;
+            }
+            
+            // Иначе проверяем по обычной логике
             return sectionType !== '';
         };
         
@@ -191,9 +201,9 @@
             var shouldShow = self.shouldShowCaptions();
             
             if (shouldShow) {
-                // ПОКАЗЫВАТЬ в текущем разделе
+                // ПОКАЗЫВАТЬ в разрешенных разделах
                 return `
-                    /* Captions Fix v2 - ПОКАЗЫВАТЬ названия в этом разделе */
+                    /* Captions Fix v3 - ПОКАЗЫВАТЬ названия */
                     body .card:not(.card--collection) .card__age,
                     body .card:not(.card--collection) .card__title {
                         display: block !important;
@@ -202,12 +212,14 @@
                     }
                 `;
             } else {
-                // СКРЫВАТЬ в остальных разделах
+                // СКРЫВАТЬ в остальных разделах (включая "Подробности")
                 return `
-                    /* Captions Fix v2 - СКРЫВАТЬ названия в этом разделе */
+                    /* Captions Fix v3 - СКРЫВАТЬ названия */
                     body .card:not(.card--collection) .card__age,
                     body .card:not(.card--collection) .card__title {
                         display: none !important;
+                        opacity: 0 !important;
+                        visibility: hidden !important;
                     }
                 `;
             }
@@ -220,20 +232,20 @@
                 
                 // Если раздел изменился
                 if (currentSection !== self.lastSection) {
-                    console.log("[Captions Fix v2] Смена раздела:", self.lastSection, "->", currentSection);
+                    console.log("[Captions Fix] Смена раздела:", self.lastSection, "->", currentSection);
                     self.lastSection = currentSection;
                     self.addStyles();
                     self.applyToCards();
                 }
             } catch(e) {
-                console.error("[Captions Fix v2] Ошибка проверки:", e);
+                console.error("[Captions Fix] Ошибка проверки:", e);
             }
         };
         
         // Добавление/обновление стилей
         self.addStyles = function() {
             var css = self.generateCSS();
-            var styleId = "captions-fix-styles-v2";
+            var styleId = "captions-fix-styles-v3";
             
             // Удаляем старый элемент
             var oldStyle = document.getElementById(styleId);
@@ -255,7 +267,7 @@
             self.styleElement = style;
         };
         
-        // Применение к существующим карточкам (БЕЗ ЗАДЕРЖКИ)
+        // Применение к существующим карточкам
         self.applyToCards = function() {
             try {
                 var shouldShow = self.shouldShowCaptions();
@@ -276,11 +288,11 @@
                     }
                 });
             } catch(e) {
-                console.error("[Captions Fix v2] Ошибка применения к карточкам:", e);
+                console.error("[Captions Fix] Ошибка применения к карточкам:", e);
             }
         };
         
-        // Наблюдатель за изменениями (БЕЗ ЗАДЕРЖКИ)
+        // Наблюдатель за изменениями
         self.startObserver = function() {
             if (self.observer) return;
             
@@ -325,7 +337,6 @@
                 }
                 
                 if (shouldCheck) {
-                    // БЕЗ ЗАДЕРЖКИ!
                     self.checkAndUpdate();
                 }
             });
@@ -339,7 +350,7 @@
             });
         };
         
-        // Дебаг функция - показывает текущий раздел
+        // Дебаг функция
         self.debugInfo = function() {
             var section = self.getCurrentSection();
             var type = self.detectSectionType(section);
@@ -349,7 +360,6 @@
             console.log("Раздел:", section);
             console.log("Тип:", type);
             console.log("Показывать названия:", shouldShow);
-            console.log("Текущий CSS:", self.styleElement ? self.styleElement.textContent.substring(0, 200) + "..." : "нет");
             console.log("========================");
             
             return {
@@ -359,18 +369,7 @@
             };
         };
         
-        // Ручное управление
-        self.forceShow = function() {
-            document.body.classList.add('captions-force-show');
-            self.applyToCards();
-        };
-        
-        self.forceHide = function() {
-            document.body.classList.add('captions-force-hide');
-            self.applyToCards();
-        };
-        
-        // Очистка
+        // Деструктор
         self.destroy = function() {
             if (self.observer) {
                 self.observer.disconnect();
@@ -380,15 +379,15 @@
                 self.styleElement.remove();
                 self.styleElement = null;
             }
-            window.captions_fix_plugin_v2 = false;
-            console.log("[Captions Fix v2] Остановлен");
+            window.captions_fix_plugin_v3 = false;
+            console.log("[Captions Fix v3] Остановлен");
         };
     }
     
     // Создаём и запускаем плагин
     var plugin = new CaptionsFix();
     
-    // Запускаем сразу БЕЗ ЗАДЕРЖКИ
+    // Запускаем сразу
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             plugin.init();
@@ -400,17 +399,6 @@
     // Добавляем в глобальную область для дебага
     window.debugCaptions = function() {
         return plugin.debugInfo();
-    };
-    
-    // Команды для ручного управления
-    window.showCaptions = function() {
-        plugin.forceShow();
-        console.log("[Captions Fix] Принудительно показать названия");
-    };
-    
-    window.hideCaptions = function() {
-        plugin.forceHide();
-        console.log("[Captions Fix] Принудительно скрыть названия");
     };
     
     // Экспортируем плагин

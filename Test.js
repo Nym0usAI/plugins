@@ -31,14 +31,6 @@
             torrents: ['торрент', 'torrent', 'загрузк', 'download'],
             search: ['поиск', 'search', 'искан', 'find']
         };
-
-        // +++ FIX: actor / director pages keywords +++
-        self.SECTION_KEYWORDS.actor = [
-            'actor', 'acting', 'cast', 'актёр', 'актер'
-        ];
-        self.SECTION_KEYWORDS.director = [
-            'director', 'directing', 'режиссёр', 'режиссер'
-        ];
         
         self.init = function() {
             if (self.initialized) return;
@@ -56,7 +48,7 @@
             console.log("[Captions Fix v2] Инициализирован");
         };
         
-        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА
+        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА (БЕЗ ИЗМЕНЕНИЙ)
         self.getCurrentSection = function() {
             var section = "";
             
@@ -77,15 +69,6 @@
                 }
                 
                 var hash = window.location.hash.toLowerCase();
-
-                // +++ FIX: actor / director pages from URL +++
-                if (hash.includes('component=actor') || hash.includes('job=acting')) {
-                    return 'Actor';
-                }
-                if (hash.includes('job=director')) {
-                    return 'Director';
-                }
-
                 if (hash.includes('favorite') || hash.includes('избранн')) return "Избранное";
                 if (hash.includes('history') || hash.includes('истори')) return "История";
                 if (hash.includes('torrent') || hash.includes('торрент')) return "Торренты";
@@ -112,25 +95,42 @@
             return '';
         };
         
+        // ✅ ЕДИНСТВЕННЫЙ ФИКС — ТОЛЬКО ЗДЕСЬ
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
+            var hash = window.location.hash.toLowerCase();
+
+            // +++ FIX: actor / director pages MUST HIDE captions +++
+            if (
+                hash.includes('component=actor') ||
+                hash.includes('job=acting') ||
+                hash.includes('job=director')
+            ) {
+                return false;
+            }
+
             return sectionType !== '';
         };
         
         self.generateCSS = function() {
-            return self.shouldShowCaptions()
-                ? `
-                body .card:not(.card--collection) .card__age,
-                body .card:not(.card--collection) .card__title {
-                    display: block !important;
-                    opacity: 1 !important;
-                }`
-                : `
-                body .card:not(.card--collection) .card__age,
-                body .card:not(.card--collection) .card__title {
-                    display: none !important;
-                }`;
+            if (self.shouldShowCaptions()) {
+                return `
+                    body .card:not(.card--collection) .card__age,
+                    body .card:not(.card--collection) .card__title {
+                        display: block !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                    }
+                `;
+            } else {
+                return `
+                    body .card:not(.card--collection) .card__age,
+                    body .card:not(.card--collection) .card__title {
+                        display: none !important;
+                    }
+                `;
+            }
         };
         
         self.checkAndUpdate = function() {
@@ -150,15 +150,21 @@
             var style = document.createElement("style");
             style.id = styleId;
             style.textContent = self.generateCSS();
-            document.head.insertBefore(style, document.head.firstChild);
+            
+            var head = document.head || document.getElementsByTagName('head')[0];
+            head.insertBefore(style, head.firstChild);
+            
             self.styleElement = style;
         };
         
         self.applyToCards = function() {
             var show = self.shouldShowCaptions();
-            document.querySelectorAll('.card:not(.card--collection)').forEach(function(card) {
+            var cards = document.querySelectorAll('.card:not(.card--collection)');
+            
+            cards.forEach(function(card) {
                 var age = card.querySelector('.card__age');
                 var title = card.querySelector('.card__title');
+                
                 if (age) age.style.display = show ? 'block' : 'none';
                 if (title) title.style.display = show ? 'block' : 'none';
             });
@@ -166,11 +172,13 @@
         
         self.startObserver = function() {
             if (self.observer) return;
+            
             self.observer = new MutationObserver(self.checkAndUpdate);
             self.observer.observe(document.body, {
                 childList: true,
                 subtree: true,
-                attributes: true
+                attributes: true,
+                attributeFilter: ['class']
             });
         };
     }
@@ -178,7 +186,9 @@
     var plugin = new CaptionsFix();
     
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', plugin.init);
+        document.addEventListener('DOMContentLoaded', function () {
+            plugin.init();
+        });
     } else {
         plugin.init();
     }

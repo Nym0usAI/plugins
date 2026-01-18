@@ -12,19 +12,8 @@
         self.initialized = false;
         self.styleElement = null;
         self.observer = null;
-        self.lastDecision = null;
-
-        // Подпункты Избранного (все значения type)
-        self.FAVORITE_SUBSECTIONS = [
-            'book',       // Закладки
-            'scheduled',  // Запланированно
-            'wath',       // Позже
-            'like',       // Нравится
-            'look',       // Смотрю
-            'viewed',     // Просмотрено
-            'thrown',     // Брошено
-            'continued'   // Продолжение следует
-        ];
+        self.lastDecision = null; // хранит последнюю логику показа/скрытия
+        self.FAVORITE_SUBSECTIONS = ['book','scheduled','wath','like','look','viewed','thrown','continued'];
         
         self.SHOW_IN_SECTIONS = [
             "Релизы", "Releases", "релизы", "releases",
@@ -113,25 +102,28 @@
         };
         
         // =============================
-        // ✅ Финальный FIX для подпунктов Избранного
+        // ✅ Финальный FIX: подпункты Избранного и component=bookmarks показываются
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
             var search = window.location.search.toLowerCase();
             var bodyClass = document.body.className.toLowerCase();
+            var hash = window.location.hash.toLowerCase();
 
             var urlParams = new URLSearchParams(window.location.search);
             var typeParam = urlParams.get('type') ? urlParams.get('type').toLowerCase() : '';
+            var compParam = urlParams.get('component') ? urlParams.get('component').toLowerCase() : '';
             var href = window.location.href.toLowerCase();
 
-            // 1️⃣ Подпункты Избранного — показываем
-            if (sectionType === 'favorites') {
+            // 1️⃣ Избранное (все подпункты favorites + component=bookmarks)
+            if (sectionType === 'favorites' || compParam === 'bookmarks') {
                 if (
                     self.FAVORITE_SUBSECTIONS.includes(typeParam) ||
-                    self.FAVORITE_SUBSECTIONS.some(sub => href.includes(`type=${sub}`))
+                    href.includes('component=bookmarks') ||
+                    href.includes('type=')
                 ) {
-                    return true;
+                    return true; // показываем надписи
                 }
             }
 
@@ -156,6 +148,7 @@
         
         self.generateCSS = function() {
             var decision = self.shouldShowCaptions();
+
             if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : '';
             self.lastDecision = decision;
 

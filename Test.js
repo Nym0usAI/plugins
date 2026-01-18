@@ -14,7 +14,6 @@
         self.observer = null;
         self.lastDecision = null;
 
-        // Все подпункты избранного
         self.FAVORITE_SUBSECTIONS = ['book','scheduled','wath','like','look','viewed','thrown','continued'];
         
         self.init = function() {
@@ -32,49 +31,53 @@
             console.log("[Captions Fix v4] Инициализирован");
         };
         
-        // Проверяем, показывать ли надписи
+        // Определяем, показывать ли надписи
         self.shouldShowCaptions = function() {
             try {
-                var search = window.location.search.toLowerCase();
+                var searchParams = new URLSearchParams(window.location.search);
+                var typeParam = (searchParams.get('type') || '').toLowerCase();
+                var compParam = (searchParams.get('component') || '').toLowerCase();
                 var bodyClass = document.body.className.toLowerCase();
-                var hash = window.location.hash.toLowerCase();
 
-                // Берём текущую Activity Лампы
+                // Берём активную Activity
                 var activity = Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active() : null;
                 var activeType = (activity && activity.type) ? activity.type.toLowerCase() : '';
                 var activeComponent = (activity && activity.component) ? activity.component.toLowerCase() : '';
 
-                // 1️⃣ Любой подпункт Избранного или bookmarks — показываем
-                if ((activeComponent === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(activeType)) ||
-                    (activeComponent === 'bookmarks')) {
-                    return true;
-                }
+                // 1️⃣ Любой подпункт Избранного или bookmarks
+                if (
+                    (compParam === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(typeParam)) ||
+                    (activeComponent === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(activeType)) ||
+                    (compParam === 'bookmarks') ||
+                    (activeComponent === 'bookmarks')
+                ) return true;
 
-                // 2️⃣ Страница карточки фильма/сериала
-                if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
-                    return true;
-                }
+                // 2️⃣ Страница релизов — показываем
+                if (compParam === 'release' || activeComponent === 'release') return true;
 
-                // 3️⃣ Страница поиска
-                if (search.includes('query=') || bodyClass.includes('search')) {
-                    return true;
-                }
+                // 3️⃣ Страница карточки фильма/сериала
+                if (window.location.search.toLowerCase().includes('card=') &&
+                    (window.location.search.toLowerCase().includes('media=movie') || window.location.search.toLowerCase().includes('media=tv'))
+                ) return true;
 
-                // 4️⃣ Страницы актёров/режиссёров — скрываем
-                if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
-                    return false;
-                }
+                // 4️⃣ Страница поиска
+                if (bodyClass.includes('search') || window.location.search.toLowerCase().includes('query=')) return true;
+
+                // 5️⃣ Страницы актёров/режиссёров — скрываем
+                if (window.location.search.toLowerCase().includes('component=actor') ||
+                    window.location.search.toLowerCase().includes('job=acting') ||
+                    window.location.search.toLowerCase().includes('job=director')
+                ) return false;
 
             } catch(e) {
                 console.error("[Captions Fix v4] Ошибка shouldShowCaptions:", e);
             }
 
-            return false; // остальные разделы скрываем
+            return false;
         };
         
         self.generateCSS = function() {
             var decision = self.shouldShowCaptions();
-
             if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : '';
             self.lastDecision = decision;
 

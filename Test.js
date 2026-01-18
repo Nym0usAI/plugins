@@ -415,31 +415,334 @@
     
     // Экспортируем плагин
     window.CaptionsFixPlugin = plugin;
-    
-// Проверяем и применяем немедленно
-setTimeout(function() {
-    var url = window.location.href;
-    if (url.includes('component=actor') || url.includes('job=acting') || url.includes('id=')) {
-        console.log("🚨 Обнаружена страница актёра, скрываю названия...");
+
+    // ==============================================
+// ДОПОЛНИТЕЛЬНАЯ ФИКСАЦИЯ ДЛЯ СТРАНИЦ АКТЁРОВ
+// ==============================================
+
+// 1. Функция проверки страницы актёра
+function checkIfActorPage() {
+    try {
+        var url = window.location.href.toLowerCase();
+        var hash = window.location.hash.toLowerCase();
+        
+        // Паттерны для поиска в URL
+        var patterns = [
+            'component=actor', 'component=person',
+            'job=acting', 'job=directing', 'job=',
+            'type=actor', 'type=person',
+            'view=actor', 'view=person',
+            '/actor/', '/person/',
+            '&id=', '?id=', 'id='
+        ];
+        
+        // Проверяем URL
+        for (var i = 0; i < patterns.length; i++) {
+            if (url.includes(patterns[i]) || hash.includes(patterns[i])) {
+                console.log("[Actor Fix] ✅ Обнаружена страница актёра по URL:", patterns[i]);
+                return true;
+            }
+        }
+        
+        // Проверяем заголовок
+        var headers = [
+            '.head__title', 'h1', '.page-title', 
+            '.title', '.person__name', '.actor__name',
+            '[class*="title"]', '[class*="header"]'
+        ];
+        
+        for (var j = 0; j < headers.length; j++) {
+            var header = document.querySelector(headers[j]);
+            if (header && header.textContent) {
+                var text = header.textContent.toLowerCase();
+                var keywords = [
+                    'актер', 'актёр', 'actor', 'актриса', 'actress',
+                    'режиссёр', 'режиссер', 'director',
+                    'сценарист', 'writer', 'продюсер', 'producer',
+                    'композитор', 'composer', 'оператор', 'cinematographer'
+                ];
+                
+                for (var k = 0; k < keywords.length; k++) {
+                    if (text.includes(keywords[k])) {
+                        console.log("[Actor Fix] ✅ Обнаружена страница актёра по заголовку:", keywords[k]);
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        // Проверяем DOM-элементы
+        var actorElements = document.querySelectorAll(
+            '.actor-info, .person-info, .director-info, ' +
+            '.filmography, .credits, .works, ' +
+            '[data-component="actor"], [data-component="person"], ' +
+            '.person__content, .actor__content'
+        );
+        
+        if (actorElements.length > 0) {
+            console.log("[Actor Fix] ✅ Обнаружена страница актёра по DOM элементам:", actorElements.length);
+            return true;
+        }
+        
+        return false;
+    } catch(e) {
+        console.error("[Actor Fix] Ошибка проверки:", e);
+        return false;
+    }
+}
+
+// 2. Функция принудительного скрытия названий
+function forceHideActorCaptions() {
+    try {
+        // Создаём стили с максимальным приоритетом
+        var styleId = 'actor-captions-fix-force';
+        var oldStyle = document.getElementById(styleId);
+        if (oldStyle) oldStyle.remove();
         
         var style = document.createElement('style');
+        style.id = styleId;
         style.textContent = `
-            .card .card__title, .card .card__age {
+            /* Actor Fix - Принудительное скрытие */
+            body .card .card__title,
+            body .card .card__age,
+            .card:not(.card--collection) .card__title,
+            .card:not(.card--collection) .card__age,
+            .filmography .card .card__title,
+            .filmography .card .card__age,
+            .credits .card .card__title,
+            .credits .card .card__age {
                 display: none !important;
                 opacity: 0 !important;
                 visibility: hidden !important;
+                pointer-events: none !important;
+            }
+            
+            /* Отключаем любые hover-эффекты */
+            .card:hover .card__title,
+            .card:hover .card__age {
+                display: none !important;
             }
         `;
-        document.head.appendChild(style);
+        
+        // Вставляем в самое начало head для максимального приоритета
+        var head = document.head || document.getElementsByTagName('head')[0];
+        if (head.firstChild) {
+            head.insertBefore(style, head.firstChild);
+        } else {
+            head.appendChild(style);
+        }
         
         // Применяем к существующим карточкам
         var cards = document.querySelectorAll('.card');
         cards.forEach(function(card) {
             var title = card.querySelector('.card__title');
             var age = card.querySelector('.card__age');
-            if (title) title.style.display = 'none';
-            if (age) age.style.display = 'none';
+            
+            if (title) {
+                title.style.display = 'none';
+                title.style.opacity = '0';
+                title.style.visibility = 'hidden';
+            }
+            if (age) {
+                age.style.display = 'none';
+                age.style.opacity = '0';
+                age.style.visibility = 'hidden';
+            }
         });
+        
+        console.log("[Actor Fix] 🎬 Названия принудительно скрыты");
+        return true;
+    } catch(e) {
+        console.error("[Actor Fix] Ошибка скрытия:", e);
+        return false;
     }
-}, 1000);
+}
+
+// 3. Визуальный индикатор для отладки
+function createActorDebugIndicator() {
+    try {
+        var indicatorId = 'actor-fix-debug';
+        var oldIndicator = document.getElementById(indicatorId);
+        if (oldIndicator) oldIndicator.remove();
+        
+        var indicator = document.createElement('div');
+        indicator.id = indicatorId;
+        indicator.style.cssText = `
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: #ff4444;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 999999;
+            max-width: 300px;
+            word-wrap: break-word;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            border: 2px solid white;
+            display: none;
+        `;
+        
+        document.body.appendChild(indicator);
+        return indicator;
+    } catch(e) {
+        console.error("[Actor Fix] Ошибка создания индикатора:", e);
+        return null;
+    }
+}
+
+// 4. Главная функция проверки и применения
+function applyActorFix() {
+    var isActorPage = checkIfActorPage();
+    
+    if (isActorPage) {
+        console.log("[Actor Fix] 🔴 Обнаружена страница актёра, применяю фикс...");
+        forceHideActorCaptions();
+        
+        // Показываем индикатор
+        var indicator = document.getElementById('actor-fix-debug') || createActorDebugIndicator();
+        if (indicator) {
+            indicator.style.display = 'block';
+            indicator.innerHTML = `
+                <div><strong>ACTOR FIX ACTIVE</strong></div>
+                <div>🛑 Названия скрыты</div>
+                <div>URL: ${window.location.href.substring(0, 40)}...</div>
+                <div>Время: ${new Date().toLocaleTimeString()}</div>
+            `;
+            indicator.style.background = '#ff4444';
+        }
+        
+        return true;
+    } else {
+        // Если не актёрская страница - скрываем индикатор
+        var indicator = document.getElementById('actor-fix-debug');
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+        return false;
+    }
+}
+
+// 5. Интеграция с вашим плагином
+function integrateWithMainPlugin() {
+    if (typeof CaptionsFixPlugin !== 'undefined') {
+        // Добавляем методы в основной плагин
+        CaptionsFixPlugin.checkIfActorPage = checkIfActorPage;
+        CaptionsFixPlugin.forceHideActorCaptions = forceHideActorCaptions;
+        CaptionsFixPlugin.applyActorFix = applyActorFix;
+        
+        console.log("[Actor Fix] ✅ Интегрировано с основным плагином");
+        
+        // Переопределяем shouldShowCaptions если нужно
+        if (CaptionsFixPlugin.shouldShowCaptions) {
+            var originalShouldShow = CaptionsFixPlugin.shouldShowCaptions;
+            CaptionsFixPlugin.shouldShowCaptions = function() {
+                if (checkIfActorPage()) {
+                    console.log("[Actor Fix] Переопределение: страница актёра - не показывать");
+                    return false;
+                }
+                return originalShouldShow.apply(this, arguments);
+            };
+        }
+    }
+}
+
+// 6. Запуск с задержками для надёжности
+function startActorFix() {
+    console.log("[Actor Fix] 🚀 Запуск фикса для страниц актёров");
+    
+    // Создаём индикатор
+    createActorDebugIndicator();
+    
+    // Интегрируем с основным плагином
+    integrateWithMainPlugin();
+    
+    // Запускаем проверку несколько раз с задержками
+    var checkAttempts = [
+        500,   // 0.5 секунды
+        1000,  // 1 секунда
+        2000,  // 2 секунды
+        3000,  // 3 секунды
+        5000   // 5 секунд
+    ];
+    
+    checkAttempts.forEach(function(delay, index) {
+        setTimeout(function() {
+            console.log(`[Actor Fix] Попытка ${index + 1} через ${delay}мс`);
+            applyActorFix();
+        }, delay);
+    });
+    
+    // Наблюдатель за изменениями DOM
+    var observer = new MutationObserver(function(mutations) {
+        var shouldCheck = false;
+        
+        for (var i = 0; i < mutations.length; i++) {
+            var mutation = mutations[i];
+            
+            // Если добавляются карточки
+            if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                for (var j = 0; j < mutation.addedNodes.length; j++) {
+                    var node = mutation.addedNodes[j];
+                    if (node.nodeType === 1 && 
+                       (node.classList.contains('card') || 
+                        (node.querySelector && node.querySelector('.card')))) {
+                        shouldCheck = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Если меняется URL (hashchange)
+            if (mutation.type === 'attributes' && mutation.attributeName === 'href') {
+                shouldCheck = true;
+            }
+        }
+        
+        if (shouldCheck) {
+            setTimeout(applyActorFix, 100);
+        }
+    });
+    
+    // Начинаем наблюдение
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['href', 'class']
+    });
+    
+    // Наблюдатель за изменениями URL
+    window.addEventListener('hashchange', function() {
+        setTimeout(applyActorFix, 300);
+    });
+    
+    // Интервал для периодической проверки
+    setInterval(applyActorFix, 5000);
+    
+    console.log("[Actor Fix] ✅ Система активирована");
+}
+
+// 7. Запускаем после загрузки страницы
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(startActorFix, 1000);
+    });
+} else {
+    setTimeout(startActorFix, 1000);
+}
+
+// 8. Глобальные функции для ручного вызова
+window.forceHideActorTitles = forceHideActorCaptions;
+window.checkActorPage = checkIfActorPage;
+window.reapplyActorFix = applyActorFix;
+
+console.log("[Actor Fix] 📦 Модуль загружен, ожидание запуска...");
+
+// ==============================================
+// КОНЕЦ ДОПОЛНИТЕЛЬНОГО КОДА
+// ==============================================
+    
 })();

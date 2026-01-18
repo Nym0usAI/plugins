@@ -2,10 +2,10 @@
     "use strict";
     
     if (typeof Lampa === "undefined") return;
-    if (window.captions_fix_plugin_v3) return;
-    window.captions_fix_plugin_v3 = true;
+    if (window.captions_fix_plugin_v4) return;
+    window.captions_fix_plugin_v4 = true;
     
-    console.log("[Captions Fix v3] Плагин запущен");
+    console.log("[Captions Fix v4] Плагин запущен");
     
     function CaptionsFix() {
         var self = this;
@@ -14,6 +14,7 @@
         self.observer = null;
         self.lastDecision = null;
 
+        // Все подпункты избранного
         self.FAVORITE_SUBSECTIONS = ['book','scheduled','wath','like','look','viewed','thrown','continued'];
         
         self.init = function() {
@@ -28,32 +29,25 @@
             self.checkAndUpdate();
             
             self.initialized = true;
-            console.log("[Captions Fix v3] Инициализирован");
+            console.log("[Captions Fix v4] Инициализирован");
         };
         
-        // Определяем, нужно ли показывать надписи
+        // Проверяем, показывать ли надписи
         self.shouldShowCaptions = function() {
             try {
                 var search = window.location.search.toLowerCase();
                 var bodyClass = document.body.className.toLowerCase();
-                var href = window.location.href.toLowerCase();
-                var typeParam = new URLSearchParams(window.location.search).get('type');
-                typeParam = typeParam ? typeParam.toLowerCase() : '';
-                var compParam = new URLSearchParams(window.location.search).get('component');
-                compParam = compParam ? compParam.toLowerCase() : '';
+                var hash = window.location.hash.toLowerCase();
 
-                // 1️⃣ Подпункты Избранного или component=bookmarks
+                // Берём текущую Activity Лампы
                 var activity = Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active() : null;
                 var activeType = (activity && activity.type) ? activity.type.toLowerCase() : '';
                 var activeComponent = (activity && activity.component) ? activity.component.toLowerCase() : '';
 
-                if (
-                    (compParam === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(typeParam)) ||
-                    (activeComponent === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(activeType)) ||
-                    (compParam === 'bookmarks') ||
-                    (activeComponent === 'bookmarks')
-                ) {
-                    return true; // показываем надписи
+                // 1️⃣ Любой подпункт Избранного или bookmarks — показываем
+                if ((activeComponent === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(activeType)) ||
+                    (activeComponent === 'bookmarks')) {
+                    return true;
                 }
 
                 // 2️⃣ Страница карточки фильма/сериала
@@ -72,10 +66,10 @@
                 }
 
             } catch(e) {
-                console.error("[Captions Fix v3] Ошибка shouldShowCaptions:", e);
+                console.error("[Captions Fix v4] Ошибка shouldShowCaptions:", e);
             }
 
-            return false; // в остальных случаях скрываем
+            return false; // остальные разделы скрываем
         };
         
         self.generateCSS = function() {
@@ -112,7 +106,7 @@
             var css = self.generateCSS();
             if (!css) return;
             
-            var styleId = "captions-fix-styles-v3";
+            var styleId = "captions-fix-styles-v4";
             var oldStyle = document.getElementById(styleId);
             if (oldStyle) oldStyle.remove();
             
@@ -159,8 +153,11 @@
     
     window.CaptionsFixPlugin = plugin;
     window.debugCaptions = function() {
+        var activity = Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active() : {};
         return {
-            section: Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active().title : '',
+            section: activity.title || '',
+            component: activity.component || '',
+            type: activity.type || '',
             show: plugin.shouldShowCaptions()
         };
     };

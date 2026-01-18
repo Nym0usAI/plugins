@@ -101,7 +101,7 @@
         };
         
         // =============================
-        // ✅ СТАБИЛЬНЫЙ FIX с подпунктами избранного
+        // ✅ ФИКС: показываем надписи во всех подпунктах Избранного
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
@@ -124,17 +124,8 @@
                 return false;
             }
 
-            // 4️⃣ Подкатегории Избранного — показываем
+            // 4️⃣ Раздел Избранное — показываем ВСЕ подпункты
             if (sectionType === 'favorites') {
-                var activeTab = document.querySelector('.tabs__item.active, .menu__item.active');
-                if (activeTab && activeTab.textContent) {
-                    var tabName = activeTab.textContent.toLowerCase();
-                    var showTabs = ['закладки','нравится','позже','смотрю','запланированно','продолжение следует','брошено','просмотрено'];
-                    for (var i = 0; i < showTabs.length; i++) {
-                        if (tabName.includes(showTabs[i])) return true;
-                    }
-                }
-                // если таб не найден — всё равно показываем для главного раздела
                 return true;
             }
 

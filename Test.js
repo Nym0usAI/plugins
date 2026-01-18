@@ -48,7 +48,6 @@
             console.log("[Captions Fix v2] Инициализирован");
         };
         
-        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА
         self.getCurrentSection = function() {
             var section = "";
             
@@ -95,21 +94,29 @@
             return '';
         };
         
-        // ✅ ОБОИ ФИКСА
+        // =============================
+        // ✅ ПРАВИЛЬНЫЙ FIX #1 и FIX #2
+        // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
+            var search = window.location.search.toLowerCase();
             var hash = window.location.hash.toLowerCase();
 
-            // +++ FIX #1: карточка фильма / сериала — показывать надписи в каруселях
+            // +++ FIX #1: карточка фильма / сериала — ПОКАЗЫВАТЬ надписи
             if (
-                hash.includes('card=') &&
-                (hash.includes('media=movie') || hash.includes('media=tv'))
+                search.includes('card=') &&
+                (search.includes('media=movie') || search.includes('media=tv'))
             ) {
                 return true;
             }
 
-            // +++ FIX #2: страницы актёров / режиссёров — скрывать
+            // +++ FIX #2: страницы поиска — ПОКАЗЫВАТЬ надписи
+            if (search.includes('search') || document.body.className.toLowerCase().includes('search')) {
+                return true;
+            }
+
+            // +++ FIX #3: страницы актёров / режиссёров — скрывать
             if (
                 hash.includes('component=actor') ||
                 hash.includes('job=acting') ||
@@ -118,7 +125,7 @@
                 return false;
             }
 
-            // стандартная логика для всех остальных разделов
+            // стандартная логика для остальных разделов
             return sectionType !== '';
         };
         

@@ -416,6 +416,250 @@
     // Экспортируем плагин
     window.CaptionsFixPlugin = plugin;
 
+// ==============================================
+// ЭКСТРЕННЫЙ ФИКС ДЛЯ СКРЫТИЯ НАЗВАНИЙ
+// ==============================================
+
+(function EmergencyFix() {
+    console.log("🚨 Активирую экстренный фикс...");
+    
+    // 1. Постоянный индикатор с кнопкой
+    var emergencyIndicator = document.createElement('div');
+    emergencyIndicator.id = 'emergency-fix-indicator';
+    emergencyIndicator.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #ff0000, #ff4444);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        font-family: Arial;
+        font-size: 14px;
+        z-index: 999999;
+        box-shadow: 0 5px 20px rgba(255,0,0,0.5);
+        border: 3px solid white;
+        max-width: 350px;
+        cursor: pointer;
+        text-align: center;
+    `;
+    
+    emergencyIndicator.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 8px;">🚨 НАЗВАНИЯ НЕ СКРЫТЫ</div>
+        <div>Нажмите здесь для принудительного скрытия</div>
+        <div style="font-size: 11px; margin-top: 8px; opacity: 0.8;">
+            ${window.location.href.substring(0, 50)}...
+        </div>
+    `;
+    
+    document.body.appendChild(emergencyIndicator);
+    
+    // 2. Функция АТОМАРНОГО скрытия
+    function atomicHideTitles() {
+        console.log("⚛️ Atomic hide triggered");
+        
+        // СТРАТЕГИЯ 1: Удаление элементов напрямую
+        var titles = document.querySelectorAll('.card__title, .card__age, [class*="title"], [class*="name"]');
+        titles.forEach(function(el) {
+            if (el.closest && el.closest('.card')) {
+                el.style.cssText = 'display: none !important; opacity: 0 !important; visibility: hidden !important; height: 0 !important; width: 0 !important; overflow: hidden !important;';
+            }
+        });
+        
+        // СТРАТЕГИЯ 2: Стили с ядерным приоритетом
+        var nuclearStyle = document.createElement('style');
+        nuclearStyle.id = 'nuclear-hide-style';
+        nuclearStyle.textContent = `
+            /* ЯДЕРНЫЕ СТИЛИ - МАКСИМАЛЬНЫЙ ПРИОРИТЕТ */
+            html body .card .card__title,
+            html body .card .card__age,
+            body .card .card__title,
+            body .card .card__age,
+            .card .card__title,
+            .card .card__age,
+            [class*="card"] [class*="title"],
+            [class*="card"] [class*="age"],
+            .filmography * .card__title,
+            .filmography * .card__age,
+            .credits * .card__title,
+            .credits * .card__age,
+            .works * .card__title,
+            .works * .card__age {
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                width: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                font-size: 0 !important;
+                line-height: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                left: -9999px !important;
+                top: -9999px !important;
+                pointer-events: none !important;
+                user-select: none !important;
+                -webkit-user-select: none !important;
+            }
+            
+            /* Уничтожаем контейнеры названий */
+            .card__captions,
+            .card__info,
+            .card__text,
+            [class*="caption"],
+            [class*="info"] {
+                display: none !important;
+                height: 0 !important;
+                opacity: 0 !important;
+            }
+            
+            /* Отключаем все переходы и анимации */
+            .card * {
+                transition: none !important;
+                animation: none !important;
+            }
+        `;
+        
+        // Вставляем в самое начало документа
+        document.documentElement.insertBefore(nuclearStyle, document.documentElement.firstChild);
+        
+        // СТРАТЕГИЯ 3: Мутация DOM
+        var cards = document.querySelectorAll('.card');
+        cards.forEach(function(card, index) {
+            // Удаляем через 10мс для каждого элемента
+            setTimeout(function() {
+                var title = card.querySelector('.card__title, [class*="title"]');
+                var age = card.querySelector('.card__age, [class*="age"], [class*="year"]');
+                
+                if (title) {
+                    title.remove();
+                    console.log("🗑️ Удалён заголовок в карточке", index);
+                }
+                if (age) {
+                    age.remove();
+                    console.log("🗑️ Удалён год в карточке", index);
+                }
+                
+                // Добавляем атрибут для отслеживания
+                card.setAttribute('data-titles-removed', 'true');
+            }, index * 10);
+        });
+        
+        // СТРАТЕГИЯ 4: Observer для новых элементов
+        var destroyObserver = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) {
+                            // Проверяем карточки
+                            var cards = node.classList && node.classList.contains('card') 
+                                ? [node] 
+                                : node.querySelectorAll ? node.querySelectorAll('.card') : [];
+                            
+                            // Проверяем вложенные карточки
+                            if (cards.length === 0 && node.querySelectorAll) {
+                                cards = node.querySelectorAll('.card');
+                            }
+                            
+                            cards.forEach(function(card) {
+                                if (!card.hasAttribute('data-titles-removed')) {
+                                    var title = card.querySelector('.card__title, [class*="title"]');
+                                    var age = card.querySelector('.card__age, [class*="age"]');
+                                    
+                                    if (title) {
+                                        title.style.cssText = 'display: none !important; opacity: 0 !important;';
+                                        setTimeout(function() { title.remove(); }, 50);
+                                    }
+                                    if (age) {
+                                        age.style.cssText = 'display: none !important; opacity: 0 !important;';
+                                        setTimeout(function() { age.remove(); }, 50);
+                                    }
+                                    
+                                    card.setAttribute('data-titles-removed', 'true');
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        });
+        
+        destroyObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Обновляем индикатор
+        emergencyIndicator.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 8px;">✅ НАЗВАНИЯ СКРЫТЫ</div>
+            <div>Атомарный фикс активирован</div>
+            <div style="font-size: 11px; margin-top: 8px; opacity: 0.8;">
+                Скрыто: ${titles.length} элементов<br>
+                Карточек: ${cards.length}
+            </div>
+        `;
+        emergencyIndicator.style.background = 'linear-gradient(135deg, #00aa00, #44ff44)';
+        
+        console.log("✅ Atomic hide completed. Titles:", titles.length, "Cards:", cards.length);
+    }
+    
+    // 3. Кнопка для ручного скрытия
+    emergencyIndicator.addEventListener('click', function() {
+        console.log("🖱️ Manual hide triggered by click");
+        atomicHideTitles();
+        
+        // Меняем текст кнопки
+        setTimeout(function() {
+            emergencyIndicator.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 8px;">🔄 ОБНОВИТЬ СТРАНИЦУ</div>
+                <div>Для полного сброса</div>
+            `;
+            emergencyIndicator.style.background = 'linear-gradient(135deg, #ffaa00, #ffcc44)';
+            
+            emergencyIndicator.onclick = function() {
+                window.location.reload();
+            };
+        }, 2000);
+    });
+    
+    // 4. Автозапуск через 2 секунды
+    setTimeout(function() {
+        // Проверяем, видны ли ещё названия
+        var visibleTitles = document.querySelectorAll('.card__title:not([style*="display: none"]), .card__age:not([style*="display: none"])');
+        
+        if (visibleTitles.length > 0) {
+            console.log("🕒 Auto-hide triggered, visible titles:", visibleTitles.length);
+            atomicHideTitles();
+        } else {
+            emergencyIndicator.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 8px;">✅ ВСЁ ОК</div>
+                <div>Названия скрыты</div>
+            `;
+            emergencyIndicator.style.background = 'linear-gradient(135deg, #00aa00, #44ff44)';
+        }
+    }, 2000);
+    
+    // 5. Проверка каждые 3 секунды
+    setInterval(function() {
+        var checkTitles = document.querySelectorAll('.card__title, .card__age');
+        var visible = Array.from(checkTitles).filter(function(el) {
+            var style = window.getComputedStyle(el);
+            return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        });
+        
+        if (visible.length > 0) {
+            console.log("🔍 Found visible titles:", visible.length);
+            atomicHideTitles();
+        }
+    }, 3000);
+    
+    console.log("🚨 Emergency fix deployed");
+})();
+
+// ==============================================
+// КОНЕЦ ЭКСТРЕННОГО ФИКСА
+// ==============================================
     // ==============================================
 // ДОПОЛНИТЕЛЬНАЯ ФИКСАЦИЯ ДЛЯ СТРАНИЦ АКТЁРОВ
 // ==============================================

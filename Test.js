@@ -12,8 +12,9 @@
         self.initialized = false;
         self.styleElement = null;
         self.observer = null;
-        self.lastDecision = null;
+        self.lastSection = "";
         
+        // РАЗДЕЛЫ ГДЕ НАЗВАНИЯ ДОЛЖНЫ ПОКАЗЫВАТЬСЯ
         self.SHOW_IN_SECTIONS = [
             "Релизы", "Releases", "релизы", "releases",
             "Избранное", "Favorites", "Избранное", "favorites", 
@@ -22,16 +23,21 @@
             "Поиск", "Search", "поиск", "search"
         ];
         
+        // Ключевые слова для определения разделов
         self.SECTION_KEYWORDS = {
-            releases: ['релиз', 'release', 'новинк'],
-            favorites: ['избранн', 'favorit', 'закладк', 'bookmark'],
-            history: ['истори', 'histor', 'просмотр', 'watch'],
-            torrents: ['торрент', 'torrent', 'загрузк', 'download'],
-            search: ['поиск', 'search', 'искан', 'find']
+            'releases': ['релиз', 'release', 'новинк'],
+            'favorites': ['избранн', 'favorit', 'закладк', 'bookmark'],
+            'history': ['истори', 'histor', 'просмотр', 'watch'],
+            'torrents': ['торрент', 'torrent', 'загрузк', 'download'],
+            'search': ['поиск', 'search', 'искан', 'find']
         };
         
+        // Инициализация
         self.init = function() {
             if (self.initialized) return;
+            
+            console.log("[Captions Fix v2] Инициализация...");
+            
             if (!document.body) {
                 requestAnimationFrame(self.init);
                 return;
@@ -40,7 +46,6 @@
             self.addStyles();
             self.startObserver();
             self.checkAndUpdate();
-            
             self.initialized = true;
             console.log("[Captions Fix v2] Инициализирован");
         };
@@ -81,6 +86,7 @@
             } catch(e) {
                 console.error("[Captions Fix v2] Ошибка определения раздела:", e);
             }
+            
             return section || "";
         };
         
@@ -101,7 +107,7 @@
         };
         
         // =============================
-        // ✅ ФИКС: показываем надписи во всех подпунктах Избранного
+        // ✅ Исправление для актёров и режиссёров
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
@@ -109,36 +115,33 @@
             var search = window.location.search.toLowerCase();
             var bodyClass = document.body.className.toLowerCase();
 
-            // 1️⃣ Страница карточки фильма/сериала — показываем
+            // Страница карточки фильма/сериала — показываем
             if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
                 return true;
             }
 
-            // 2️⃣ Страница поиска — показываем
+            // Страница поиска — показываем
             if (search.includes('query=') || bodyClass.includes('search')) {
                 return true;
             }
 
-            // 3️⃣ Страницы актёров/режиссёров — скрываем
+            // Страницы актёров/режиссёров — скрываем
             if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
                 return false;
             }
 
-            // 4️⃣ Раздел Избранное — показываем ВСЕ подпункты
+            // Раздел Избранное — показываем ВСЕ подпункты
             if (sectionType === 'favorites') {
                 return true;
             }
 
-            // 5️⃣ Остальные разделы — стандартная логика
+            // Остальные разделы — стандартная логика
             return sectionType !== '';
         };
         
         self.generateCSS = function() {
-            var decision = self.shouldShowCaptions();
-            if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : '';
-            self.lastDecision = decision;
-
-            if (decision) {
+            var shouldShow = self.shouldShowCaptions();
+            if (shouldShow) {
                 return `
                     body .card:not(.card--collection) .card__age,
                     body .card:not(.card--collection) .card__title {
@@ -175,7 +178,6 @@
             style.textContent = css;
             var head = document.head || document.getElementsByTagName('head')[0];
             head.insertBefore(style, head.firstChild);
-            
             self.styleElement = style;
         };
         
@@ -200,22 +202,44 @@
                 attributeFilter: ['class']
             });
         };
+        
+        self.debugInfo = function() {
+            var section = self.getCurrentSection();
+            var type = self.detectSectionType(section);
+            var shouldShow = self.shouldShowCaptions();
+            console.log("=== Captions Fix Debug ===");
+            console.log("Раздел:", section);
+            console.log("Тип:", type);
+            console.log("Показывать названия:", shouldShow);
+            console.log("========================");
+            return {section, type, shouldShow};
+        };
+        
+        self.forceShow = function() {
+            document.body.classList.add('captions-force-show');
+            self.applyToCards();
+        };
+        
+        self.forceHide = function() {
+            document.body.classList.add('captions-force-hide');
+            self.applyToCards();
+        };
+        
+        self.destroy = function() {
+            if (self.observer) self.observer.disconnect();
+            if (self.styleElement) self.styleElement.remove();
+            window.captions_fix_plugin_v2 = false;
+            console.log("[Captions Fix v2] Остановлен");
+        };
     }
     
     var plugin = new CaptionsFix();
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
-            plugin.init();
-        });
-    } else {
-        plugin.init();
-    }
+        document.addEventListener('DOMContentLoaded', function() { plugin.init(); });
+    } else { plugin.init(); }
     
+    window.debugCaptions = function() { return plugin.debugInfo(); };
+    window.showCaptions = function() { plugin.forceShow(); console.log("[Captions Fix] Принудительно показать названия"); };
+    window.hideCaptions = function() { plugin.forceHide(); console.log("[Captions Fix] Принудительно скрыть названия"); };
     window.CaptionsFixPlugin = plugin;
-    window.debugCaptions = function() {
-        return {
-            section: plugin.getCurrentSection(),
-            show: plugin.shouldShowCaptions()
-        };
-    };
 })();

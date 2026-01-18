@@ -416,275 +416,30 @@
     // Экспортируем плагин
     window.CaptionsFixPlugin = plugin;
     
-})();
-// Признаки страницы актёра/режиссёра
-self.ACTOR_SECTION_KEYWORDS = [
-    'актер', 'актёр', 'actor', 'актриса', 'actress',
-    'режиссёр', 'режиссер', 'director', 'режиссёр', 
-    'сценарист', 'writer', 'продюсер', 'producer',
-    'композитор', 'composer', 'оператор', 'cinematographer',
-    'персона', 'person', 'исполнитель', 'исполнители'
-];
-
-self.ACTOR_URL_PATTERNS = [
-    'component=actor',
-    'component=person',
-    'job=acting',
-    'job=directing',
-    'type=actor',
-    'type=person',
-    'view=actor',
-    'view=person',
-    '/actor/',
-    '/person/',
-    'id=',
-    '&job='
-];
-
-// Проверка является ли текущая страница страницей актёра/режиссёра
-self.checkIfActorPage = function() {
-    self.isActorPage = false;
-    
-    try {
-        var currentUrl = window.location.href.toLowerCase();
-        var currentHash = window.location.hash.toLowerCase();
+// Проверяем и применяем немедленно
+setTimeout(function() {
+    var url = window.location.href;
+    if (url.includes('component=actor') || url.includes('job=acting') || url.includes('id=')) {
+        console.log("🚨 Обнаружена страница актёра, скрываю названия...");
         
-        // 1. Проверка URL на наличие признаков страницы персоны
-        for (var i = 0; i < self.ACTOR_URL_PATTERNS.length; i++) {
-            if (currentUrl.includes(self.ACTOR_URL_PATTERNS[i]) || 
-                currentHash.includes(self.ACTOR_URL_PATTERNS[i])) {
-                self.isActorPage = true;
-                console.log("[Captions Fix] Обнаружена страница персоны по URL:", self.ACTOR_URL_PATTERNS[i]);
-                break;
-            }
-        }
-        
-        // 2. Проверка по заголовку
-        if (!self.isActorPage) {
-            var headerTitle = document.querySelector('.head__title, h1, .page-title');
-            if (headerTitle && headerTitle.textContent) {
-                var titleText = headerTitle.textContent.toLowerCase();
-                for (var j = 0; j < self.ACTOR_SECTION_KEYWORDS.length; j++) {
-                    if (titleText.includes(self.ACTOR_SECTION_KEYWORDS[j])) {
-                        self.isActorPage = true;
-                        console.log("[Captions Fix] Обнаружена страница персоны по заголовку:", self.ACTOR_SECTION_KEYWORDS[j]);
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // 3. Проверка по структуре DOM
-        if (!self.isActorPage) {
-            var actorElements = document.querySelectorAll(
-                '.actor-info, .person-info, .director-info, .profile-info, ' +
-                '[data-component="actor"], [data-component="person"], ' +
-                '.filmography, .credits, .works, .person__content, ' +
-                '.actor__filmography, .person__filmography'
-            );
-            
-            if (actorElements.length > 0) {
-                self.isActorPage = true;
-                console.log("[Captions Fix] Обнаружена страница персоны по DOM элементам:", actorElements.length);
-            }
-        }
-        
-        // 4. Проверка по тексту на странице
-        if (!self.isActorPage) {
-            var pageText = document.body.textContent.toLowerCase();
-            var actorKeywordsFound = 0;
-            
-            for (var k = 0; k < self.ACTOR_SECTION_KEYWORDS.length; k++) {
-                if (pageText.includes(self.ACTOR_SECTION_KEYWORDS[k])) {
-                    actorKeywordsFound++;
-                    // Если найдено несколько ключевых слов - вероятно страница актёра
-                    if (actorKeywordsFound > 2) {
-                        self.isActorPage = true;
-                        console.log("[Captions Fix] Обнаружена страница персоны по тексту (найдено ключевых слов:", actorKeywordsFound);
-                        break;
-                    }
-                }
-            }
-        }
-        
-    } catch(e) {
-        console.error("[Captions Fix] Ошибка проверки страницы персоны:", e);
-    }
-    
-    return self.isActorPage;
-};
-
-// В функции проверки, нужно ли показывать названия
-self.shouldShowCaptions = function() {
-    // На страницах актёров НИКОГДА не показываем названия
-    if (self.isActorPage) {
-        console.log("[Captions Fix] Страница актёра - НЕ показывать названия");
-        return false;
-    }
-    
-    // ... остальная логика для других разделов ...
-};
-
-// В функции генерации CSS
-self.generateCSS = function() {
-    // Проверяем страницу актёра каждый раз при генерации CSS
-    self.checkIfActorPage();
-    
-    if (self.isActorPage) {
-        // СКРЫВАТЬ названия на странице актёра/режиссёра
-        return `
-            /* Captions Fix - СКРЫТЬ названия на странице актёра/режиссёра */
-            body .card:not(.card--collection) .card__age,
-            body .card:not(.card--collection) .card__title {
+        var style = document.createElement('style');
+        style.textContent = `
+            .card .card__title, .card .card__age {
                 display: none !important;
                 opacity: 0 !important;
                 visibility: hidden !important;
-                pointer-events: none !important;
-            }
-            
-            /* Отключаем ховер-эффекты на странице актёра */
-            body .card:not(.card--collection):hover .card__title {
-                display: none !important;
             }
         `;
-    }
-    
-    // ... остальная логика генерации CSS для других разделов ...
-};
-
-// В функции проверки и обновления
-self.checkAndUpdate = function() {
-    try {
-        // Проверяем страницу актёра каждый раз
-        var wasActorPage = self.isActorPage;
-        self.checkIfActorPage();
+        document.head.appendChild(style);
         
-        // Если изменился статус страницы актёра
-        if (wasActorPage !== self.isActorPage) {
-            console.log("[Captions Fix] Изменение статуса страницы актёра:", wasActorPage, "->", self.isActorPage);
-            self.addStyles();
-            self.applyToCards();
-        }
-        
-        // ... остальная логика проверки ...
-    } catch(e) {
-        console.error("[Captions Fix] Ошибка проверки:", e);
-    }
-};
-
-// В функции применения к карточкам
-self.applyToCards = function() {
-    try {
-        // Сначала проверяем страницу актёра
-        self.checkIfActorPage();
-        
-        var shouldShow = self.shouldShowCaptions();
-        var cards = document.querySelectorAll('.card:not(.card--collection)');
-        
+        // Применяем к существующим карточкам
+        var cards = document.querySelectorAll('.card');
         cards.forEach(function(card) {
-            var age = card.querySelector('.card__age');
             var title = card.querySelector('.card__title');
-            
-            if (age) {
-                age.style.display = (self.isActorPage || !shouldShow) ? 'none' : 'block';
-                age.style.opacity = (self.isActorPage || !shouldShow) ? '0' : '1';
-                age.style.visibility = (self.isActorPage || !shouldShow) ? 'hidden' : 'visible';
-            }
-            
-            if (title) {
-                title.style.display = (self.isActorPage || !shouldShow) ? 'none' : 'block';
-                title.style.opacity = (self.isActorPage || !shouldShow) ? '0' : '1';
-                title.style.visibility = (self.isActorPage || !shouldShow) ? 'hidden' : 'visible';
-            }
+            var age = card.querySelector('.card__age');
+            if (title) title.style.display = 'none';
+            if (age) age.style.display = 'none';
         });
-    } catch(e) {
-        console.error("[Captions Fix] Ошибка применения к карточкам:", e);
     }
-};
-
-// В наблюдателе за изменениями добавить проверку URL
-self.startObserver = function() {
-    if (self.observer) return;
-    
-    self.observer = new MutationObserver(function(mutations) {
-        var shouldCheck = false;
-        
-        for (var i = 0; i < mutations.length; i++) {
-            var mutation = mutations[i];
-            
-            // ... другие проверки ...
-            
-            // Если меняются классы body
-            if (mutation.target === document.body && 
-                mutation.attributeName === 'class') {
-                shouldCheck = true;
-                break;
-            }
-            
-            // Если добавляются элементы характерные для страниц актёров
-            if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-                for (var j = 0; j < mutation.addedNodes.length; j++) {
-                    var node = mutation.addedNodes[j];
-                    if (node.nodeType === 1) {
-                        if (node.matches && (node.matches('.actor-info, .person-info, .filmography, .credits') || 
-                            node.querySelector('.actor-info, .person-info, .filmography, .credits'))) {
-                            shouldCheck = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (shouldCheck) {
-            self.checkAndUpdate();
-        }
-    });
-    
-    self.observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ['class']
-    });
-};
-
-// Наблюдатель за URL изменениями (добавить если нет)
-self.setupURLWatcher = function() {
-    // Перехватываем history API
-    var originalPushState = history.pushState;
-    var originalReplaceState = history.replaceState;
-    
-    history.pushState = function() {
-        originalPushState.apply(this, arguments);
-        setTimeout(function() {
-            self.checkIfActorPage();
-            self.checkAndUpdate();
-        }, 100);
-    };
-    
-    history.replaceState = function() {
-        originalReplaceState.apply(this, arguments);
-        setTimeout(function() {
-            self.checkIfActorPage();
-            self.checkAndUpdate();
-        }, 100);
-    };
-    
-    // Отслеживаем hashchange
-    window.addEventListener('hashchange', function() {
-        setTimeout(function() {
-            self.checkIfActorPage();
-            self.checkAndUpdate();
-        }, 100);
-    }, false);
-    
-    // Отслеживаем popstate
-    window.addEventListener('popstate', function() {
-        setTimeout(function() {
-            self.checkIfActorPage();
-            self.checkAndUpdate();
-        }, 100);
-    }, false);
-};
+}, 1000);
+})();

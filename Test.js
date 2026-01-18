@@ -12,7 +12,7 @@
         self.initialized = false;
         self.styleElement = null;
         self.observer = null;
-        self.lastDecision = null; // хранит последнюю логику показа/скрытия
+        self.lastDecision = null;
         
         self.SHOW_IN_SECTIONS = [
             "Релизы", "Releases", "релизы", "releases",
@@ -101,7 +101,7 @@
         };
         
         // =============================
-        // ✅ СТАБИЛЬНЫЙ FIX
+        // ✅ СТАБИЛЬНЫЙ FIX с подпунктами избранного
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
@@ -124,14 +124,26 @@
                 return false;
             }
 
-            // 4️⃣ Остальные разделы — стандартная логика
+            // 4️⃣ Подкатегории Избранного — показываем
+            if (sectionType === 'favorites') {
+                var activeTab = document.querySelector('.tabs__item.active, .menu__item.active');
+                if (activeTab && activeTab.textContent) {
+                    var tabName = activeTab.textContent.toLowerCase();
+                    var showTabs = ['закладки','нравится','позже','смотрю','запланированно','продолжение следует','брошено','просмотрено'];
+                    for (var i = 0; i < showTabs.length; i++) {
+                        if (tabName.includes(showTabs[i])) return true;
+                    }
+                }
+                // если таб не найден — всё равно показываем для главного раздела
+                return true;
+            }
+
+            // 5️⃣ Остальные разделы — стандартная логика
             return sectionType !== '';
         };
         
         self.generateCSS = function() {
             var decision = self.shouldShowCaptions();
-
-            // ⚡️ только если решение изменилось, пересоздаём стили
             if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : '';
             self.lastDecision = decision;
 
@@ -161,7 +173,7 @@
         
         self.addStyles = function() {
             var css = self.generateCSS();
-            if (!css) return; // если решение не изменилось
+            if (!css) return;
             
             var styleId = "captions-fix-styles-v2";
             var oldStyle = document.getElementById(styleId);

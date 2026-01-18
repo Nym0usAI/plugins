@@ -48,7 +48,7 @@
             console.log("[Captions Fix v2] Инициализирован");
         };
         
-        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА (БЕЗ ИЗМЕНЕНИЙ)
+        // ОПРЕДЕЛЕНИЕ РАЗДЕЛА
         self.getCurrentSection = function() {
             var section = "";
             
@@ -95,13 +95,21 @@
             return '';
         };
         
-        // ✅ ЕДИНСТВЕННЫЙ ФИКС — ТОЛЬКО ЗДЕСЬ
+        // ✅ ОБОИ ФИКСА
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
             var hash = window.location.hash.toLowerCase();
 
-            // +++ FIX: actor / director pages MUST HIDE captions +++
+            // +++ FIX #1: карточка фильма / сериала — показывать надписи в каруселях
+            if (
+                hash.includes('card=') &&
+                (hash.includes('media=movie') || hash.includes('media=tv'))
+            ) {
+                return true;
+            }
+
+            // +++ FIX #2: страницы актёров / режиссёров — скрывать
             if (
                 hash.includes('component=actor') ||
                 hash.includes('job=acting') ||
@@ -110,6 +118,7 @@
                 return false;
             }
 
+            // стандартная логика для всех остальных разделов
             return sectionType !== '';
         };
         

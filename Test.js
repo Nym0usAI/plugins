@@ -12,7 +12,7 @@
         self.initialized = false;
         self.styleElement = null;
         self.observer = null;
-        self.lastSection = "";
+        self.lastDecision = null; // хранит последнюю логику показа/скрытия
         
         self.SHOW_IN_SECTIONS = [
             "Релизы", "Releases", "релизы", "releases",
@@ -101,7 +101,7 @@
         };
         
         // =============================
-        // ✅ ПРАВИЛЬНЫЙ FIX
+        // ✅ СТАБИЛЬНЫЙ FIX
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
@@ -110,10 +110,7 @@
             var bodyClass = document.body.className.toLowerCase();
 
             // 1️⃣ Страница карточки фильма/сериала — показываем
-            if (
-                search.includes('card=') &&
-                (search.includes('media=movie') || search.includes('media=tv'))
-            ) {
+            if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
                 return true;
             }
 
@@ -123,11 +120,7 @@
             }
 
             // 3️⃣ Страницы актёров/режиссёров — скрываем
-            if (
-                search.includes('component=actor') ||
-                search.includes('job=acting') ||
-                search.includes('job=director')
-            ) {
+            if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
                 return false;
             }
 
@@ -136,7 +129,13 @@
         };
         
         self.generateCSS = function() {
-            if (self.shouldShowCaptions()) {
+            var decision = self.shouldShowCaptions();
+
+            // ⚡️ только если решение изменилось, пересоздаём стили
+            if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : '';
+            self.lastDecision = decision;
+
+            if (decision) {
                 return `
                     body .card:not(.card--collection) .card__age,
                     body .card:not(.card--collection) .card__title {
@@ -156,22 +155,21 @@
         };
         
         self.checkAndUpdate = function() {
-            var currentSection = self.getCurrentSection();
-            if (currentSection !== self.lastSection) {
-                self.lastSection = currentSection;
-                self.addStyles();
-                self.applyToCards();
-            }
+            self.addStyles();
+            self.applyToCards();
         };
         
         self.addStyles = function() {
+            var css = self.generateCSS();
+            if (!css) return; // если решение не изменилось
+            
             var styleId = "captions-fix-styles-v2";
             var oldStyle = document.getElementById(styleId);
             if (oldStyle) oldStyle.remove();
             
             var style = document.createElement("style");
             style.id = styleId;
-            style.textContent = self.generateCSS();
+            style.textContent = css;
             var head = document.head || document.getElementsByTagName('head')[0];
             head.insertBefore(style, head.firstChild);
             

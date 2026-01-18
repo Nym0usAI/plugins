@@ -95,7 +95,7 @@
         };
         
         // =============================
-        // ✅ ПРАВИЛЬНЫЙ FIX #1 и FIX #2
+        // ✅ ПРАВИЛЬНЫЙ FIX
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
@@ -103,7 +103,7 @@
             var search = window.location.search.toLowerCase();
             var hash = window.location.hash.toLowerCase();
 
-            // +++ FIX #1: карточка фильма / сериала — ПОКАЗЫВАТЬ надписи
+            // 1️⃣ Страница карточки фильма/сериала — показываем
             if (
                 search.includes('card=') &&
                 (search.includes('media=movie') || search.includes('media=tv'))
@@ -111,21 +111,21 @@
                 return true;
             }
 
-            // +++ FIX #2: страницы поиска — ПОКАЗЫВАТЬ надписи
-            if (search.includes('search') || document.body.className.toLowerCase().includes('search')) {
+            // 2️⃣ Страница поиска — показываем
+            if (search.includes('query=') || document.body.className.toLowerCase().includes('search')) {
                 return true;
             }
 
-            // +++ FIX #3: страницы актёров / режиссёров — скрывать
+            // 3️⃣ Страницы актёров/режиссёров — скрываем
             if (
-                hash.includes('component=actor') ||
-                hash.includes('job=acting') ||
-                hash.includes('job=director')
+                search.includes('component=actor') ||
+                search.includes('job=acting') ||
+                search.includes('job=director')
             ) {
                 return false;
             }
 
-            // стандартная логика для остальных разделов
+            // 4️⃣ Все остальные разделы — стандартная логика
             return sectionType !== '';
         };
         

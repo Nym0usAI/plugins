@@ -2,34 +2,19 @@
     "use strict";
     
     if (typeof Lampa === "undefined") return;
-    if (window.captions_fix_plugin_v2) return;
-    window.captions_fix_plugin_v2 = true;
+    if (window.captions_fix_plugin_v3) return;
+    window.captions_fix_plugin_v3 = true;
     
-    console.log("[Captions Fix v2] Плагин запущен");
+    console.log("[Captions Fix v3] Плагин запущен");
     
     function CaptionsFix() {
         var self = this;
         self.initialized = false;
         self.styleElement = null;
         self.observer = null;
-        self.lastDecision = null; // хранит последнюю логику показа/скрытия
+        self.lastDecision = null;
+
         self.FAVORITE_SUBSECTIONS = ['book','scheduled','wath','like','look','viewed','thrown','continued'];
-        
-        self.SHOW_IN_SECTIONS = [
-            "Релизы", "Releases", "релизы", "releases",
-            "Избранное", "Favorites", "Избранное", "favorites", 
-            "История", "History", "история", "history",
-            "Торренты", "Torrents", "торренты", "torrents",
-            "Поиск", "Search", "поиск", "search"
-        ];
-        
-        self.SECTION_KEYWORDS = {
-            releases: ['релиз', 'release', 'новинк'],
-            favorites: ['избранн', 'favorit', 'закладк', 'bookmark'],
-            history: ['истори', 'histor', 'просмотр', 'watch'],
-            torrents: ['торрент', 'torrent', 'загрузк', 'download'],
-            search: ['поиск', 'search', 'искан', 'find']
-        };
         
         self.init = function() {
             if (self.initialized) return;
@@ -43,107 +28,54 @@
             self.checkAndUpdate();
             
             self.initialized = true;
-            console.log("[Captions Fix v2] Инициализирован");
+            console.log("[Captions Fix v3] Инициализирован");
         };
         
-        self.getCurrentSection = function() {
-            var section = "";
-            try {
-                var headerTitle = document.querySelector('.head__title');
-                if (headerTitle && headerTitle.textContent) {
-                    section = headerTitle.textContent.trim();
-                    if (section) return section;
-                }
-                
-                if (Lampa.Activity && Lampa.Activity.active) {
-                    var activity = Lampa.Activity.active();
-                    if (activity) {
-                        if (activity.title) section = activity.title;
-                        else if (activity.name) section = activity.name;
-                        else if (activity.component && activity.component.title) section = activity.component.title;
-                        if (section) return section;
-                    }
-                }
-                
-                var hash = window.location.hash.toLowerCase();
-                if (hash.includes('favorite') || hash.includes('избранн')) return "Избранное";
-                if (hash.includes('history') || hash.includes('истори')) return "История";
-                if (hash.includes('torrent') || hash.includes('торрент')) return "Торренты";
-                if (hash.includes('release') || hash.includes('релиз')) return "Релизы";
-                if (hash.includes('search') || hash.includes('поиск')) return "Поиск";
-                
-                var bodyClass = document.body.className;
-                if (bodyClass.includes('favorite') || bodyClass.includes('избран')) return "Избранное";
-                if (bodyClass.includes('history') || bodyClass.includes('истор')) return "История";
-                if (bodyClass.includes('torrent') || bodyClass.includes('торрент')) return "Торренты";
-                if (bodyClass.includes('release') || bodyClass.includes('релиз')) return "Релизы";
-                if (bodyClass.includes('search') || bodyClass.includes('поиск')) return "Поиск";
-                
-            } catch(e) {
-                console.error("[Captions Fix v2] Ошибка определения раздела:", e);
-            }
-            return section || "";
-        };
-        
-        self.detectSectionType = function(sectionName) {
-            if (!sectionName) return '';
-            var name = sectionName.toLowerCase();
-            for (var type in self.SECTION_KEYWORDS) {
-                var keywords = self.SECTION_KEYWORDS[type];
-                for (var i = 0; i < keywords.length; i++) {
-                    if (name.includes(keywords[i])) return type;
-                }
-            }
-            var lowerSections = self.SHOW_IN_SECTIONS.map(s => s.toLowerCase());
-            for (var j = 0; j < lowerSections.length; j++) {
-                if (name.includes(lowerSections[j]) || lowerSections[j].includes(name)) return lowerSections[j];
-            }
-            return '';
-        };
-        
-        // =============================
-        // ✅ Финальный FIX: подпункты Избранного и component=bookmarks показываются
-        // =============================
+        // Определяем, нужно ли показывать надписи
         self.shouldShowCaptions = function() {
-            var section = self.getCurrentSection();
-            var sectionType = self.detectSectionType(section);
-            var search = window.location.search.toLowerCase();
-            var bodyClass = document.body.className.toLowerCase();
-            var hash = window.location.hash.toLowerCase();
+            try {
+                var search = window.location.search.toLowerCase();
+                var bodyClass = document.body.className.toLowerCase();
+                var href = window.location.href.toLowerCase();
+                var typeParam = new URLSearchParams(window.location.search).get('type');
+                typeParam = typeParam ? typeParam.toLowerCase() : '';
+                var compParam = new URLSearchParams(window.location.search).get('component');
+                compParam = compParam ? compParam.toLowerCase() : '';
 
-            var urlParams = new URLSearchParams(window.location.search);
-            var typeParam = urlParams.get('type') ? urlParams.get('type').toLowerCase() : '';
-            var compParam = urlParams.get('component') ? urlParams.get('component').toLowerCase() : '';
-            var href = window.location.href.toLowerCase();
+                // 1️⃣ Подпункты Избранного или component=bookmarks
+                var activity = Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active() : null;
+                var activeType = (activity && activity.type) ? activity.type.toLowerCase() : '';
+                var activeComponent = (activity && activity.component) ? activity.component.toLowerCase() : '';
 
-            // 1️⃣ Избранное (все подпункты favorites + component=bookmarks)
-            if (sectionType === 'favorites' || compParam === 'bookmarks') {
                 if (
-                    self.FAVORITE_SUBSECTIONS.includes(typeParam) ||
-                    href.includes('component=bookmarks') ||
-                    href.includes('type=')
+                    (compParam === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(typeParam)) ||
+                    (activeComponent === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(activeType)) ||
+                    (compParam === 'bookmarks') ||
+                    (activeComponent === 'bookmarks')
                 ) {
                     return true; // показываем надписи
                 }
+
+                // 2️⃣ Страница карточки фильма/сериала
+                if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
+                    return true;
+                }
+
+                // 3️⃣ Страница поиска
+                if (search.includes('query=') || bodyClass.includes('search')) {
+                    return true;
+                }
+
+                // 4️⃣ Страницы актёров/режиссёров — скрываем
+                if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
+                    return false;
+                }
+
+            } catch(e) {
+                console.error("[Captions Fix v3] Ошибка shouldShowCaptions:", e);
             }
 
-            // 2️⃣ Страница карточки фильма/сериала
-            if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
-                return true;
-            }
-
-            // 3️⃣ Страница поиска
-            if (search.includes('query=') || bodyClass.includes('search')) {
-                return true;
-            }
-
-            // 4️⃣ Страницы актёров/режиссёров — скрываем
-            if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
-                return false;
-            }
-
-            // 5️⃣ Остальные разделы — стандартная логика
-            return sectionType !== '';
+            return false; // в остальных случаях скрываем
         };
         
         self.generateCSS = function() {
@@ -170,7 +102,7 @@
                 `;
             }
         };
-        
+
         self.checkAndUpdate = function() {
             self.addStyles();
             self.applyToCards();
@@ -180,7 +112,7 @@
             var css = self.generateCSS();
             if (!css) return;
             
-            var styleId = "captions-fix-styles-v2";
+            var styleId = "captions-fix-styles-v3";
             var oldStyle = document.getElementById(styleId);
             if (oldStyle) oldStyle.remove();
             
@@ -228,7 +160,7 @@
     window.CaptionsFixPlugin = plugin;
     window.debugCaptions = function() {
         return {
-            section: plugin.getCurrentSection(),
+            section: Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active().title : '',
             show: plugin.shouldShowCaptions()
         };
     };

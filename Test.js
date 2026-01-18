@@ -14,7 +14,6 @@
         self.observer = null;
         self.lastSection = "";
         
-        // РАЗДЕЛЫ ГДЕ НАЗВАНИЯ ДОЛЖНЫ ПОКАЗЫВАТЬСЯ
         self.SHOW_IN_SECTIONS = [
             "Релизы", "Releases", "релизы", "releases",
             "Избранное", "Favorites", "Избранное", "favorites", 
@@ -23,7 +22,6 @@
             "Поиск", "Search", "поиск", "search"
         ];
         
-        // Ключевые слова для определения разделов
         self.SECTION_KEYWORDS = {
             releases: ['релиз', 'release', 'новинк'],
             favorites: ['избранн', 'favorit', 'закладк', 'bookmark'],
@@ -34,7 +32,6 @@
         
         self.init = function() {
             if (self.initialized) return;
-            
             if (!document.body) {
                 requestAnimationFrame(self.init);
                 return;
@@ -50,7 +47,6 @@
         
         self.getCurrentSection = function() {
             var section = "";
-            
             try {
                 var headerTitle = document.querySelector('.head__title');
                 if (headerTitle && headerTitle.textContent) {
@@ -63,6 +59,7 @@
                     if (activity) {
                         if (activity.title) section = activity.title;
                         else if (activity.name) section = activity.name;
+                        else if (activity.component && activity.component.title) section = activity.component.title;
                         if (section) return section;
                     }
                 }
@@ -74,22 +71,31 @@
                 if (hash.includes('release') || hash.includes('релиз')) return "Релизы";
                 if (hash.includes('search') || hash.includes('поиск')) return "Поиск";
                 
+                var bodyClass = document.body.className;
+                if (bodyClass.includes('favorite') || bodyClass.includes('избран')) return "Избранное";
+                if (bodyClass.includes('history') || bodyClass.includes('истор')) return "История";
+                if (bodyClass.includes('torrent') || bodyClass.includes('торрент')) return "Торренты";
+                if (bodyClass.includes('release') || bodyClass.includes('релиз')) return "Релизы";
+                if (bodyClass.includes('search') || bodyClass.includes('поиск')) return "Поиск";
+                
             } catch(e) {
                 console.error("[Captions Fix v2] Ошибка определения раздела:", e);
             }
-            
             return section || "";
         };
         
         self.detectSectionType = function(sectionName) {
             if (!sectionName) return '';
             var name = sectionName.toLowerCase();
-            
             for (var type in self.SECTION_KEYWORDS) {
                 var keywords = self.SECTION_KEYWORDS[type];
                 for (var i = 0; i < keywords.length; i++) {
                     if (name.includes(keywords[i])) return type;
                 }
+            }
+            var lowerSections = self.SHOW_IN_SECTIONS.map(s => s.toLowerCase());
+            for (var j = 0; j < lowerSections.length; j++) {
+                if (name.includes(lowerSections[j]) || lowerSections[j].includes(name)) return lowerSections[j];
             }
             return '';
         };
@@ -101,7 +107,7 @@
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
             var search = window.location.search.toLowerCase();
-            var hash = window.location.hash.toLowerCase();
+            var bodyClass = document.body.className.toLowerCase();
 
             // 1️⃣ Страница карточки фильма/сериала — показываем
             if (
@@ -112,7 +118,7 @@
             }
 
             // 2️⃣ Страница поиска — показываем
-            if (search.includes('query=') || document.body.className.toLowerCase().includes('search')) {
+            if (search.includes('query=') || bodyClass.includes('search')) {
                 return true;
             }
 
@@ -125,7 +131,7 @@
                 return false;
             }
 
-            // 4️⃣ Все остальные разделы — стандартная логика
+            // 4️⃣ Остальные разделы — стандартная логика
             return sectionType !== '';
         };
         
@@ -160,13 +166,12 @@
         
         self.addStyles = function() {
             var styleId = "captions-fix-styles-v2";
-            var old = document.getElementById(styleId);
-            if (old) old.remove();
+            var oldStyle = document.getElementById(styleId);
+            if (oldStyle) oldStyle.remove();
             
             var style = document.createElement("style");
             style.id = styleId;
             style.textContent = self.generateCSS();
-            
             var head = document.head || document.getElementsByTagName('head')[0];
             head.insertBefore(style, head.firstChild);
             
@@ -176,11 +181,9 @@
         self.applyToCards = function() {
             var show = self.shouldShowCaptions();
             var cards = document.querySelectorAll('.card:not(.card--collection)');
-            
             cards.forEach(function(card) {
                 var age = card.querySelector('.card__age');
                 var title = card.querySelector('.card__title');
-                
                 if (age) age.style.display = show ? 'block' : 'none';
                 if (title) title.style.display = show ? 'block' : 'none';
             });
@@ -188,7 +191,6 @@
         
         self.startObserver = function() {
             if (self.observer) return;
-            
             self.observer = new MutationObserver(self.checkAndUpdate);
             self.observer.observe(document.body, {
                 childList: true,
@@ -200,7 +202,6 @@
     }
     
     var plugin = new CaptionsFix();
-    
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () {
             plugin.init();

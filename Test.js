@@ -12,7 +12,7 @@
         self.initialized = false;
         self.styleElement = null;
         self.observer = null;
-        self.lastDecision = null; // хранит последнюю логику показа/скрытия
+        self.lastDecision = null;
 
         // Подпункты Избранного
         self.FAVORITE_SUBSECTIONS = [
@@ -106,37 +106,40 @@
         };
         
         // =============================
-        // ✅ FIX: подпункты Избранного показываются всегда
+        // ✅ Финальный FIX: подпункты Избранного показываются всегда
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
-            var searchParams = new URLSearchParams(window.location.search);
-            var typeParam = searchParams.get('type') ? searchParams.get('type').toLowerCase() : '';
-            var bodyClass = document.body.className.toLowerCase();
             var search = window.location.search.toLowerCase();
+            var hash = window.location.hash.toLowerCase();
 
-            // 1️⃣ Подпункты Избранного
-            if (sectionType === 'favorites' && self.FAVORITE_SUBSECTIONS.includes(typeParam)) {
+            var urlParams = new URLSearchParams(window.location.search);
+            var typeParam = urlParams.get('type') ? urlParams.get('type').toLowerCase() : '';
+
+            // Подпункты Избранного
+            if (sectionType === 'favorites' && 
+                (self.FAVORITE_SUBSECTIONS.includes(typeParam) || 
+                 self.FAVORITE_SUBSECTIONS.some(sub => hash.includes(sub)))) {
                 return true;
             }
 
-            // 2️⃣ Страница карточки фильма/сериала
+            // Страница карточки фильма/сериала
             if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
                 return true;
             }
 
-            // 3️⃣ Страница поиска
-            if (search.includes('query=') || bodyClass.includes('search')) {
+            // Страница поиска
+            if (search.includes('query=') || document.body.className.toLowerCase().includes('search')) {
                 return true;
             }
 
-            // 4️⃣ Страницы актёров/режиссёров — скрываем
+            // Страницы актёров/режиссёров
             if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
                 return false;
             }
 
-            // 5️⃣ Остальные разделы — стандартная логика
+            // Остальные разделы
             return sectionType !== '';
         };
         

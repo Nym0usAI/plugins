@@ -14,9 +14,16 @@
         self.observer = null;
         self.lastDecision = null;
 
-        // Подпункты Избранного
+        // Подпункты Избранного (все значения type)
         self.FAVORITE_SUBSECTIONS = [
-            'book', 'scheduled', 'wath', 'like', 'look', 'viewed', 'thrown', 'continued'
+            'book',       // Закладки
+            'scheduled',  // Запланированно
+            'wath',       // Позже
+            'like',       // Нравится
+            'look',       // Смотрю
+            'viewed',     // Просмотрено
+            'thrown',     // Брошено
+            'continued'   // Продолжение следует
         ];
         
         self.SHOW_IN_SECTIONS = [
@@ -106,40 +113,44 @@
         };
         
         // =============================
-        // ✅ Финальный FIX: подпункты Избранного показываются всегда
+        // ✅ Финальный FIX для подпунктов Избранного
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
             var search = window.location.search.toLowerCase();
-            var hash = window.location.hash.toLowerCase();
+            var bodyClass = document.body.className.toLowerCase();
 
             var urlParams = new URLSearchParams(window.location.search);
             var typeParam = urlParams.get('type') ? urlParams.get('type').toLowerCase() : '';
+            var href = window.location.href.toLowerCase();
 
-            // Подпункты Избранного
-            if (sectionType === 'favorites' && 
-                (self.FAVORITE_SUBSECTIONS.includes(typeParam) || 
-                 self.FAVORITE_SUBSECTIONS.some(sub => hash.includes(sub)))) {
-                return true;
+            // 1️⃣ Подпункты Избранного — показываем
+            if (sectionType === 'favorites') {
+                if (
+                    self.FAVORITE_SUBSECTIONS.includes(typeParam) ||
+                    self.FAVORITE_SUBSECTIONS.some(sub => href.includes(`type=${sub}`))
+                ) {
+                    return true;
+                }
             }
 
-            // Страница карточки фильма/сериала
+            // 2️⃣ Страница карточки фильма/сериала
             if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
                 return true;
             }
 
-            // Страница поиска
-            if (search.includes('query=') || document.body.className.toLowerCase().includes('search')) {
+            // 3️⃣ Страница поиска
+            if (search.includes('query=') || bodyClass.includes('search')) {
                 return true;
             }
 
-            // Страницы актёров/режиссёров
+            // 4️⃣ Страницы актёров/режиссёров — скрываем
             if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
                 return false;
             }
 
-            // Остальные разделы
+            // 5️⃣ Остальные разделы — стандартная логика
             return sectionType !== '';
         };
         

@@ -12,18 +12,11 @@
         self.initialized = false;
         self.styleElement = null;
         self.observer = null;
-        self.lastDecision = null;
+        self.lastDecision = null; // хранит последнюю логику показа/скрытия
 
         // Подпункты Избранного
         self.FAVORITE_SUBSECTIONS = [
-            'book',       // Закладки
-            'scheduled',  // Запланированно
-            'wath',       // Позже
-            'like',       // Нравится
-            'look',       // Смотрю
-            'viewed',     // Просмотрено
-            'thrown',     // Брошено
-            'continued'   // Продолжение следует
+            'book', 'scheduled', 'wath', 'like', 'look', 'viewed', 'thrown', 'continued'
         ];
         
         self.SHOW_IN_SECTIONS = [
@@ -113,7 +106,7 @@
         };
         
         // =============================
-        // ✅ FIX для подпунктов Избранного
+        // ✅ FIX: подпункты Избранного показываются всегда
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();

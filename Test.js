@@ -13,6 +13,9 @@
         self.styleElement = null;
         self.observer = null;
         self.lastDecision = null; // хранит последнюю логику показа/скрытия
+
+        // подпункты избранного
+        self.FAVORITE_SUBSECTIONS = ['book','scheduled','wath','like','look','viewed','thrown','continued'];
         
         self.SHOW_IN_SECTIONS = [
             "Релизы", "Releases", "релизы", "releases",
@@ -101,37 +104,43 @@
         };
         
         // =============================
-        // ✅ СТАБИЛЬНЫЙ FIX
+        // ✅ FIX ДЛЯ ПОДПУНКТОВ ИЗБРАННОГО
         // =============================
         self.shouldShowCaptions = function() {
             var section = self.getCurrentSection();
             var sectionType = self.detectSectionType(section);
-            var search = window.location.search.toLowerCase();
-            var bodyClass = document.body.className.toLowerCase();
+            var urlParams = new URLSearchParams(window.location.search);
+            var typeParam = urlParams.get('type');
 
-            // 1️⃣ Страница карточки фильма/сериала — показываем
-            if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
+            // 1️⃣ Если подпункт Избранного — показываем
+            if (sectionType === 'favorites' && self.FAVORITE_SUBSECTIONS.includes(typeParam)) {
                 return true;
             }
 
-            // 2️⃣ Страница поиска — показываем
-            if (search.includes('query=') || bodyClass.includes('search')) {
+            // 2️⃣ Страница карточки фильма/сериала — показываем
+            if (window.location.search.includes('card=') && 
+                (window.location.search.includes('media=movie') || window.location.search.includes('media=tv'))) {
                 return true;
             }
 
-            // 3️⃣ Страницы актёров/режиссёров — скрываем
-            if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
+            // 3️⃣ Страница поиска — показываем
+            if (window.location.search.includes('query=') || document.body.className.toLowerCase().includes('search')) {
+                return true;
+            }
+
+            // 4️⃣ Страницы актёров/режиссёров — скрываем
+            if (window.location.search.includes('component=actor') || 
+                window.location.search.includes('job=acting') || 
+                window.location.search.includes('job=director')) {
                 return false;
             }
 
-            // 4️⃣ Остальные разделы — стандартная логика
+            // 5️⃣ Остальные разделы — стандартная логика
             return sectionType !== '';
         };
         
         self.generateCSS = function() {
             var decision = self.shouldShowCaptions();
-
-            // ⚡️ только если решение изменилось, пересоздаём стили
             if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : '';
             self.lastDecision = decision;
 
@@ -161,7 +170,7 @@
         
         self.addStyles = function() {
             var css = self.generateCSS();
-            if (!css) return; // если решение не изменилось
+            if (!css) return;
             
             var styleId = "captions-fix-styles-v2";
             var oldStyle = document.getElementById(styleId);

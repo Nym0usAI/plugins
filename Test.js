@@ -1,222 +1,133 @@
 (function () {
-    "use strict";
-    
-    if (typeof Lampa === "undefined") return;
+    'use strict';
+
+    if (typeof Lampa === 'undefined') return;
     if (window.captions_fix_plugin_v2) return;
     window.captions_fix_plugin_v2 = true;
-    
-    console.log("[Captions Fix v2] Плагин запущен");
-    
+
+    /* ==================================================
+       PART 1: CAPTIONS FIX (titles + age) — NO FLICKER
+    ================================================== */
+
     function CaptionsFix() {
         var self = this;
-        self.initialized = false;
-        self.styleElement = null;
         self.observer = null;
-        self.lastDecision = null; // хранит последнюю логику показа/скрытия
+        self.lastDecision = null;
 
-        // ✅ Добавляем массив подпунктов избранного
-        self.FAVORITE_SUBSECTIONS = ['book','scheduled','wath','like','look','viewed','thrown','continued'];
-        
-        self.SHOW_IN_SECTIONS = [
-            "Релизы", "Releases", "релизы", "releases",
-            "Избранное", "Favorites", "Избранное", "favorites", 
-            "История", "History", "история", "history",
-            "Торренты", "Torrents", "торренты", "torrents",
-            "Поиск", "Search", "поиск", "search"
+        self.FAVORITE_SUBSECTIONS = [
+            'book','scheduled','wath','like','look','viewed','thrown','continued'
         ];
-        
+
         self.SECTION_KEYWORDS = {
-            releases: ['релиз', 'release', 'новинк'],
-            favorites: ['избранн', 'favorit', 'закладк', 'bookmark'],
-            history: ['истори', 'histor', 'просмотр', 'watch'],
-            torrents: ['торрент', 'torrent', 'загрузк', 'download'],
-            search: ['поиск', 'search', 'искан', 'find']
+            releases: ['релиз','release','новинк'],
+            favorites: ['избранн','favorit','закладк','bookmark'],
+            history: ['истори','histor','просмотр','watch'],
+            torrents: ['торрент','torrent','загрузк','download']
         };
-        
-        self.init = function() {
-            if (self.initialized) return;
-            if (!document.body) {
-                requestAnimationFrame(self.init);
-                return;
-            }
-            
-            self.addStyles();
-            self.startObserver();
-            self.checkAndUpdate();
-            
-            self.initialized = true;
-            console.log("[Captions Fix v2] Инициализирован");
-        };
-        
-        self.getCurrentSection = function() {
-            var section = "";
+
+        self.getCurrentSection = function () {
             try {
-                var headerTitle = document.querySelector('.head__title');
-                if (headerTitle && headerTitle.textContent) {
-                    section = headerTitle.textContent.trim();
-                    if (section) return section;
-                }
-                
-                if (Lampa.Activity && Lampa.Activity.active) {
-                    var activity = Lampa.Activity.active();
-                    if (activity) {
-                        if (activity.title) section = activity.title;
-                        else if (activity.name) section = activity.name;
-                        else if (activity.component && activity.component.title) section = activity.component.title;
-                        if (section) return section;
-                    }
-                }
-                
-                var hash = window.location.hash.toLowerCase();
-                if (hash.includes('favorite') || hash.includes('избранн')) return "Избранное";
-                if (hash.includes('history') || hash.includes('истори')) return "История";
-                if (hash.includes('torrent') || hash.includes('торрент')) return "Торренты";
-                if (hash.includes('release') || hash.includes('релиз')) return "Релизы";
-                if (hash.includes('search') || hash.includes('поиск')) return "Поиск";
-                
-                var bodyClass = document.body.className;
-                if (bodyClass.includes('favorite') || bodyClass.includes('избран')) return "Избранное";
-                if (bodyClass.includes('history') || bodyClass.includes('истор')) return "История";
-                if (bodyClass.includes('torrent') || bodyClass.includes('торрент')) return "Торренты";
-                if (bodyClass.includes('release') || bodyClass.includes('релиз')) return "Релизы";
-                if (bodyClass.includes('search') || bodyClass.includes('поиск')) return "Поиск";
-                
-            } catch(e) {
-                console.error("[Captions Fix v2] Ошибка определения раздела:", e);
-            }
-            return section || "";
+                var title = document.querySelector('.head__title');
+                if (title && title.textContent) return title.textContent.trim();
+
+                var act = Lampa.Activity?.active?.();
+                if (act?.title) return act.title;
+                if (act?.name) return act.name;
+            } catch (e) {}
+            return '';
         };
-        
-        self.detectSectionType = function(sectionName) {
-            if (!sectionName) return '';
-            var name = sectionName.toLowerCase();
-            for (var type in self.SECTION_KEYWORDS) {
-                var keywords = self.SECTION_KEYWORDS[type];
-                for (var i = 0; i < keywords.length; i++) {
-                    if (name.includes(keywords[i])) return type;
+
+        self.detectSectionType = function (name) {
+            if (!name) return '';
+            name = name.toLowerCase();
+
+            for (var k in self.SECTION_KEYWORDS) {
+                for (var i = 0; i < self.SECTION_KEYWORDS[k].length; i++) {
+                    if (name.includes(self.SECTION_KEYWORDS[k][i])) return k;
                 }
-            }
-            var lowerSections = self.SHOW_IN_SECTIONS.map(s => s.toLowerCase());
-            for (var j = 0; j < lowerSections.length; j++) {
-                if (name.includes(lowerSections[j]) || lowerSections[j].includes(name)) return lowerSections[j];
             }
             return '';
         };
-        
-        // =============================
-        // ✅ СТАБИЛЬНЫЙ FIX + подпункты избранного
-        // =============================
-        self.shouldShowCaptions = function() {
+
+        self.shouldShowCaptions = function () {
             try {
-                var search = window.location.search.toLowerCase();
+                var search = location.search.toLowerCase();
                 var bodyClass = document.body.className.toLowerCase();
-                
-                // Проверяем подпункты избранного
-                var typeParam = new URLSearchParams(window.location.search).get('type');
-                typeParam = typeParam ? typeParam.toLowerCase() : '';
-                var compParam = new URLSearchParams(window.location.search).get('component');
-                compParam = compParam ? compParam.toLowerCase() : '';
-                
-                var activity = Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active() : null;
-                var activeType = (activity && activity.type) ? activity.type.toLowerCase() : '';
-                var activeComponent = (activity && activity.component) ? activity.component.toLowerCase() : '';
-                
+                var params = new URLSearchParams(location.search);
+
+                var type = params.get('type')?.toLowerCase() || '';
+                var comp = params.get('component')?.toLowerCase() || '';
+
+                var act = Lampa.Activity?.active?.();
+                var actType = act?.type?.toLowerCase() || '';
+                var actComp = act?.component?.toLowerCase() || '';
+
+                /* FAVORITES */
                 if (
-                    (compParam === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(typeParam)) ||
-                    (activeComponent === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(activeType)) ||
-                    (compParam === 'bookmarks') ||
-                    (activeComponent === 'bookmarks')
-                ) {
-                    return true; // показываем надписи
-                }
+                    (comp === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(type)) ||
+                    (actComp === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(actType)) ||
+                    comp === 'bookmarks' ||
+                    actComp === 'bookmarks'
+                ) return true;
 
-                // Страница карточки фильма/сериала
-                if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
-                    return true;
-                }
+                /* CARD */
+                if (
+                    search.includes('card=') &&
+                    (search.includes('media=movie') || search.includes('media=tv'))
+                ) return true;
 
-                // Страница поиска
-                if (search.includes('query=') || bodyClass.includes('search')) {
-                    return true;
-                }
+                /* SEARCH */
+                if (
+                    search.includes('query=') ||
+                    search.includes('component=search') ||
+                    bodyClass.includes('search') ||
+                    actComp === 'search'
+                ) return true;
 
-                // Страницы актёров/режиссёров — скрываем
-                if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
-                    return false;
-                }
+                /* ACTORS / DIRECTORS — HIDE */
+                if (
+                    search.includes('component=actor') ||
+                    search.includes('job=acting') ||
+                    search.includes('job=director')
+                ) return false;
 
-                // Остальные разделы — стандартная логика
-                var sectionType = self.detectSectionType(self.getCurrentSection());
-                return sectionType !== '';
-                
-            } catch(e) {
-                console.error("[Captions Fix v2] Ошибка shouldShowCaptions:", e);
-            }
+                /* OTHER SECTIONS */
+                return self.detectSectionType(self.getCurrentSection()) !== '';
 
-            return false; // в остальных случаях скрываем
-        };
-        
-        self.generateCSS = function() {
-            var decision = self.shouldShowCaptions();
-
-            if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : '';
-            self.lastDecision = decision;
-
-            if (decision) {
-                return `
-                    body .card:not(.card--collection) .card__age,
-                    body .card:not(.card--collection) .card__title {
-                        display: block !important;
-                        opacity: 1 !important;
-                        visibility: visible !important;
-                    }
-                `;
-            } else {
-                return `
-                    body .card:not(.card--collection) .card__age,
-                    body .card:not(.card--collection) .card__title {
-                        display: none !important;
-                    }
-                `;
+            } catch (e) {
+                return false;
             }
         };
-        
-        self.checkAndUpdate = function() {
-            self.addStyles();
-            self.applyToCards();
-        };
-        
-        self.addStyles = function() {
-            var css = self.generateCSS();
-            if (!css) return; // если решение не изменилось
-            
-            var styleId = "captions-fix-styles-v2";
-            var oldStyle = document.getElementById(styleId);
-            if (oldStyle) oldStyle.remove();
-            
-            var style = document.createElement("style");
-            style.id = styleId;
-            style.textContent = css;
-            var head = document.head || document.getElementsByTagName('head')[0];
-            head.insertBefore(style, head.firstChild);
-            
-            self.styleElement = style;
-        };
-        
-        self.applyToCards = function() {
+
+        self.applyStyles = function () {
             var show = self.shouldShowCaptions();
-            var cards = document.querySelectorAll('.card:not(.card--collection)');
-            cards.forEach(function(card) {
-                var age = card.querySelector('.card__age');
-                var title = card.querySelector('.card__title');
-                if (age) age.style.display = show ? 'block' : 'none';
-                if (title) title.style.display = show ? 'block' : 'none';
-            });
+            if (show === self.lastDecision) return;
+            self.lastDecision = show;
+
+            var id = 'lampa-interface-fix-captions';
+            document.getElementById(id)?.remove();
+
+            var style = document.createElement('style');
+            style.id = id;
+
+            style.textContent = `
+.card:not(.card--collection) .card__title,
+.card:not(.card--collection) .card__age {
+    visibility: ${show ? 'visible' : 'hidden'} !important;
+    opacity: ${show ? '1' : '0'} !important;
+    height: ${show ? 'auto' : '0'} !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
+            `;
+
+            document.head.appendChild(style);
         };
-        
-        self.startObserver = function() {
+
+        self.startObserver = function () {
             if (self.observer) return;
-            self.observer = new MutationObserver(self.checkAndUpdate);
+
+            self.observer = new MutationObserver(self.applyStyles);
             self.observer.observe(document.body, {
                 childList: true,
                 subtree: true,
@@ -224,22 +135,100 @@
                 attributeFilter: ['class']
             });
         };
-    }
-    
-    var plugin = new CaptionsFix();
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
-            plugin.init();
-        });
-    } else {
-        plugin.init();
-    }
-    
-    window.CaptionsFixPlugin = plugin;
-    window.debugCaptions = function() {
-        return {
-            section: plugin.getCurrentSection(),
-            show: plugin.shouldShowCaptions()
+
+        self.init = function () {
+            if (!document.body) {
+                requestAnimationFrame(self.init);
+                return;
+            }
+            self.startObserver();
+            self.applyStyles();
+            console.log('[Lampa Interface Fix] CaptionsFix loaded (no flicker)');
         };
-    };
+    }
+
+    new CaptionsFix().init();
+
+    /* ==================================================
+       PART 2: INTERFACE EXTENDED
+    ================================================== */
+
+    function waitSettings(cb) {
+        if (Lampa.SettingsApi && Lampa.Storage) cb();
+        else setTimeout(() => waitSettings(cb), 300);
+    }
+
+    waitSettings(function () {
+        if (window.lampa_interface_extended) return;
+        window.lampa_interface_extended = true;
+
+        /* Ribbon position */
+        Lampa.SettingsApi.addParam({
+            component: 'interface',
+            param: {
+                name: 'RibbonPosition',
+                type: 'select',
+                values: { high: 'Высоко', middle: 'Средне', low: 'Низко' },
+                default: 'middle'
+            },
+            field: { name: 'Положение ленты' },
+            onChange: applyRibbon
+        });
+
+        /* Description lines */
+        Lampa.SettingsApi.addParam({
+            component: 'interface',
+            param: {
+                name: 'description_lines_fix',
+                type: 'select',
+                values: {
+                    1: '1 строка',
+                    2: '2 строки',
+                    3: '3 строки',
+                    4: '4 строки',
+                    5: '5 строк'
+                },
+                default: 5
+            },
+            field: { name: 'Описание: строки' },
+            onChange: applyDescription
+        });
+
+        function applyRibbon() {
+            const val = Lampa.Storage.field('RibbonPosition');
+            const map = { high: 16, middle: 20, low: 24 };
+
+            document.getElementById('lampa-ribbon-fix')?.remove();
+            const s = document.createElement('style');
+            s.id = 'lampa-ribbon-fix';
+            s.textContent = `
+.new-interface-info {
+    height: ${map[val] || 20}em !important;
+}`;
+            document.head.appendChild(s);
+        }
+
+        function applyDescription() {
+            const lines = Number(Lampa.Storage.field('description_lines_fix') || 5);
+
+            document.getElementById('lampa-desc-fix')?.remove();
+            const s = document.createElement('style');
+            s.id = 'lampa-desc-fix';
+            s.textContent = `
+.new-interface-info__description {
+    display: -webkit-box !important;
+    -webkit-line-clamp: ${lines} !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+}`;
+            document.head.appendChild(s);
+        }
+
+        applyRibbon();
+        applyDescription();
+
+        Lampa.Listener.follow('activity', applyDescription);
+        Lampa.Listener.follow('full', applyRibbon);
+    });
+
 })();

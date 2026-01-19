@@ -4,7 +4,7 @@
   if (typeof Lampa === 'undefined') return;
 
   /* ==================================================
-     PART 1: CAPTIONS FIX
+     PART 1: CAPTIONS FIX (titles + age)
   ================================================== */
 
   if (!window.captions_fix_plugin_v2) {
@@ -12,8 +12,6 @@
 
     function CaptionsFix() {
       var self = this;
-      self.initialized = false;
-      self.styleElement = null;
       self.observer = null;
       self.lastDecision = null;
 
@@ -25,20 +23,7 @@
         releases: ['релиз','release','новинк'],
         favorites: ['избранн','favorit','закладк','bookmark'],
         history: ['истори','histor','просмотр','watch'],
-        torrents: ['торрент','torrent','загрузк','download'],
-        search: ['поиск','search','искан','find']
-      };
-
-      self.init = function () {
-        if (self.initialized) return;
-        if (!document.body) {
-          requestAnimationFrame(self.init);
-          return;
-        }
-        self.startObserver();
-        self.checkAndUpdate();
-        self.initialized = true;
-        console.log('[Lampa Interface Fix] CaptionsFix initialized');
+        torrents: ['торрент','torrent','загрузк','download']
       };
 
       self.getCurrentSection = function () {
@@ -69,6 +54,7 @@
       self.shouldShowCaptions = function () {
         try {
           var search = location.search.toLowerCase();
+          var bodyClass = document.body.className.toLowerCase();
           var params = new URLSearchParams(location.search);
 
           var type = params.get('type')?.toLowerCase() || '';
@@ -78,21 +64,37 @@
           var actType = act?.type?.toLowerCase() || '';
           var actComp = act?.component?.toLowerCase() || '';
 
+          /* ===== ИЗБРАННОЕ + ПОДПУНКТЫ ===== */
           if (
             (comp === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(type)) ||
             (actComp === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(actType)) ||
             comp === 'bookmarks' || actComp === 'bookmarks'
           ) return true;
 
-          if (search.includes('card=') &&
-              (search.includes('media=movie') || search.includes('media=tv')))
-            return true;
+          /* ===== КАРТОЧКА ===== */
+          if (
+            search.includes('card=') &&
+            (search.includes('media=movie') || search.includes('media=tv'))
+          ) return true;
 
-          if (search.includes('query=')) return true;
+          /* ===== ПОИСК (ПОЛНАЯ ПОДДЕРЖКА) ===== */
+          if (
+            search.includes('query=') ||
+            search.includes('component=search') ||
+            bodyClass.includes('search') ||
+            actComp === 'search'
+          ) return true;
 
-          if (search.includes('component=actor')) return false;
+          /* ===== АКТЁРЫ / РЕЖИССЁРЫ — СКРЫВАЕМ ===== */
+          if (
+            search.includes('component=actor') ||
+            search.includes('job=acting') ||
+            search.includes('job=director')
+          ) return false;
 
+          /* ===== ОСТАЛЬНЫЕ РАЗДЕЛЫ ===== */
           return self.detectSectionType(self.getCurrentSection()) !== '';
+
         } catch (e) {
           return false;
         }
@@ -117,13 +119,9 @@
         document.head.appendChild(style);
       };
 
-      self.checkAndUpdate = function () {
-        self.applyStyles();
-      };
-
       self.startObserver = function () {
         if (self.observer) return;
-        self.observer = new MutationObserver(self.checkAndUpdate);
+        self.observer = new MutationObserver(self.applyStyles);
         self.observer.observe(document.body, {
           childList: true,
           subtree: true,
@@ -131,54 +129,79 @@
           attributeFilter: ['class']
         });
       };
+
+      self.init = function () {
+        if (!document.body) {
+          requestAnimationFrame(self.init);
+          return;
+        }
+        self.startObserver();
+        self.applyStyles();
+        console.log('[Lampa Interface Fix] CaptionsFix loaded');
+      };
     }
 
     new CaptionsFix().init();
   }
 
   /* ==================================================
-     PART 2: INTERFACE EXTENDED (Ribbon + Description)
+     PART 2: INTERFACE EXTENDED
+     Ribbon position + Description lines
   ================================================== */
 
-  function waitLampaSettings(cb) {
+  function waitSettings(cb) {
     if (Lampa.SettingsApi && Lampa.Storage) cb();
-    else setTimeout(() => waitLampaSettings(cb), 300);
+    else setTimeout(() => waitSettings(cb), 300);
   }
 
-  waitLampaSettings(function () {
+  waitSettings(function () {
 
     if (window.lampa_interface_extended) return;
     window.lampa_interface_extended = true;
 
-    /* Ribbon position */
+    /* ===== Ribbon position ===== */
     Lampa.SettingsApi.addParam({
       component: 'interface',
       param: {
         name: 'RibbonPosition',
         type: 'select',
-        values: { high: 'Высоко', middle: 'Средне', low: 'Низко' },
+        values: {
+          high: 'Высоко',
+          middle: 'Средне',
+          low: 'Низко'
+        },
         default: 'middle'
       },
-      field: { name: 'Положение ленты' },
+      field: {
+        name: 'Положение ленты'
+      },
       onChange: applyRibbon
     });
 
-    /* Description lines */
+    /* ===== Description lines ===== */
     Lampa.SettingsApi.addParam({
       component: 'interface',
       param: {
         name: 'description_lines_fix',
         type: 'select',
-        values: { 1:'1',2:'2',3:'3',4:'4',5:'5' },
+        values: {
+          1: '1 строка',
+          2: '2 строки',
+          3: '3 строки',
+          4: '4 строки',
+          5: '5 строк'
+        },
         default: 5
       },
-      field: { name: 'Описание: строки' },
+      field: {
+        name: 'Описание: строки'
+      },
       onChange: applyDescription
     });
 
     function applyRibbon() {
       const val = Lampa.Storage.field('RibbonPosition');
-      const map = { high:16, middle:20, low:24 };
+      const map = { high: 16, middle: 20, low: 24 };
 
       document.getElementById('lampa-ribbon-fix')?.remove();
       const s = document.createElement('style');

@@ -13,6 +13,9 @@
         self.styleElement = null;
         self.observer = null;
         self.lastDecision = null; // хранит последнюю логику показа/скрытия
+
+        // ✅ Добавляем массив подпунктов избранного
+        self.FAVORITE_SUBSECTIONS = ['book','scheduled','wath','like','look','viewed','thrown','continued'];
         
         self.SHOW_IN_SECTIONS = [
             "Релизы", "Releases", "релизы", "releases",
@@ -101,37 +104,61 @@
         };
         
         // =============================
-        // ✅ СТАБИЛЬНЫЙ FIX
+        // ✅ СТАБИЛЬНЫЙ FIX + подпункты избранного
         // =============================
         self.shouldShowCaptions = function() {
-            var section = self.getCurrentSection();
-            var sectionType = self.detectSectionType(section);
-            var search = window.location.search.toLowerCase();
-            var bodyClass = document.body.className.toLowerCase();
+            try {
+                var search = window.location.search.toLowerCase();
+                var bodyClass = document.body.className.toLowerCase();
+                
+                // Проверяем подпункты избранного
+                var typeParam = new URLSearchParams(window.location.search).get('type');
+                typeParam = typeParam ? typeParam.toLowerCase() : '';
+                var compParam = new URLSearchParams(window.location.search).get('component');
+                compParam = compParam ? compParam.toLowerCase() : '';
+                
+                var activity = Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active() : null;
+                var activeType = (activity && activity.type) ? activity.type.toLowerCase() : '';
+                var activeComponent = (activity && activity.component) ? activity.component.toLowerCase() : '';
+                
+                if (
+                    (compParam === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(typeParam)) ||
+                    (activeComponent === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(activeType)) ||
+                    (compParam === 'bookmarks') ||
+                    (activeComponent === 'bookmarks')
+                ) {
+                    return true; // показываем надписи
+                }
 
-            // 1️⃣ Страница карточки фильма/сериала — показываем
-            if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
-                return true;
+                // Страница карточки фильма/сериала
+                if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) {
+                    return true;
+                }
+
+                // Страница поиска
+                if (search.includes('query=') || bodyClass.includes('search')) {
+                    return true;
+                }
+
+                // Страницы актёров/режиссёров — скрываем
+                if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
+                    return false;
+                }
+
+                // Остальные разделы — стандартная логика
+                var sectionType = self.detectSectionType(self.getCurrentSection());
+                return sectionType !== '';
+                
+            } catch(e) {
+                console.error("[Captions Fix v2] Ошибка shouldShowCaptions:", e);
             }
 
-            // 2️⃣ Страница поиска — показываем
-            if (search.includes('query=') || bodyClass.includes('search')) {
-                return true;
-            }
-
-            // 3️⃣ Страницы актёров/режиссёров — скрываем
-            if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) {
-                return false;
-            }
-
-            // 4️⃣ Остальные разделы — стандартная логика
-            return sectionType !== '';
+            return false; // в остальных случаях скрываем
         };
         
         self.generateCSS = function() {
             var decision = self.shouldShowCaptions();
 
-            // ⚡️ только если решение изменилось, пересоздаём стили
             if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : '';
             self.lastDecision = decision;
 

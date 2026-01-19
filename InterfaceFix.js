@@ -1,2 +1,217 @@
-(function () { "use strict"; if (typeof Lampa === "undefined") return; if (window.captions_fix_plugin_v2) return; window.captions_fix_plugin_v2 = true; console.log("[Captions Fix v2] Плагин запущен"); function CaptionsFix() { var self = this; self.initialized = false; self.styleElement = null; self.observer = null; self.lastDecision = null; // хранит последнюю логику показа/скрытия // ✅ Добавляем массив подпунктов избранного self.FAVORITE_SUBSECTIONS = ['book','scheduled','wath','like','look','viewed','thrown','continued']; self.SHOW_IN_SECTIONS = [ "Релизы", "Releases", "релизы", "releases", "Избранное", "Favorites", "Избранное", "favorites", "История", "History", "история", "history", "Торренты", "Torrents", "торренты", "torrents", "Поиск", "Search", "поиск", "search" ]; self.SECTION_KEYWORDS = { releases: ['релиз', 'release', 'новинк'], favorites: ['избранн', 'favorit', 'закладк', 'bookmark'], history: ['истори', 'histor', 'просмотр', 'watch'], torrents: ['торрент', 'torrent', 'загрузк', 'download'], search: ['поиск', 'search', 'искан', 'find'] }; self.init = function() { if (self.initialized) return; if (!document.body) { requestAnimationFrame(self.init); return; } self.addStyles(); self.startObserver(); self.checkAndUpdate(); self.initialized = true; console.log("[Captions Fix v2] Инициализирован"); }; self.getCurrentSection = function() { var section = ""; try { var headerTitle = document.querySelector('.head__title'); if (headerTitle && headerTitle.textContent) { section = headerTitle.textContent.trim(); if (section) return section; } if (Lampa.Activity && Lampa.Activity.active) { var activity = Lampa.Activity.active(); if (activity) { if (activity.title) section = activity.title; else if (activity.name) section = activity.name; else if (activity.component && activity.component.title) section = activity.component.title; if (section) return section; } } var hash = window.location.hash.toLowerCase(); if (hash.includes('favorite') || hash.includes('избранн')) return "Избранное"; if (hash.includes('history') || hash.includes('истори')) return "История"; if (hash.includes('torrent') || hash.includes('торрент')) return "Торренты"; if (hash.includes('release') || hash.includes('релиз')) return "Релизы"; if (hash.includes('search') || hash.includes('поиск')) return "Поиск"; var bodyClass = document.body.className; if (bodyClass.includes('favorite') || bodyClass.includes('избран')) return "Избранное"; if (bodyClass.includes('history') || bodyClass.includes('истор')) return "История"; if (bodyClass.includes('torrent') || bodyClass.includes('торрент')) return "Торренты"; if (bodyClass.includes('release') || bodyClass.includes('релиз')) return "Релизы"; if (bodyClass.includes('search') || bodyClass.includes('поиск')) return "Поиск"; } catch(e) { console.error("[Captions Fix v2] Ошибка определения раздела:", e); } return section || ""; }; self.detectSectionType = function(sectionName) { if (!sectionName) return ''; var name = sectionName.toLowerCase(); for (var type in self.SECTION_KEYWORDS) { var keywords = self.SECTION_KEYWORDS[type]; for (var i = 0; i < keywords.length; i++) { if (name.includes(keywords[i])) return type; } } var lowerSections = self.SHOW_IN_SECTIONS.map(s => s.toLowerCase()); for (var j = 0; j < lowerSections.length; j++) { if (name.includes(lowerSections[j]) || lowerSections[j].includes(name)) return lowerSections[j]; } return ''; }; // ============================= // ✅ СТАБИЛЬНЫЙ FIX + подпункты избранного // ============================= self.shouldShowCaptions = function() { try { var search = window.location.search.toLowerCase(); var bodyClass = document.body.className.toLowerCase(); // Проверяем подпункты избранного var typeParam = new URLSearchParams(window.location.search).get('type'); typeParam = typeParam ? typeParam.toLowerCase() : ''; var compParam = new URLSearchParams(window.location.search).get('component'); compParam = compParam ? compParam.toLowerCase() : ''; var activity = Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active() : null; var activeType = (activity && activity.type) ? activity.type.toLowerCase() : ''; var activeComponent = (activity && activity.component) ? activity.component.toLowerCase() : ''; if ( (compParam === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(typeParam)) || (activeComponent === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(activeType)) || (compParam === 'bookmarks') || (activeComponent === 'bookmarks') ) { return true; // показываем надписи } // Страница карточки фильма/сериала if (search.includes('card=') && (search.includes('media=movie') || search.includes('media=tv'))) { return true; } // Страница поиска if (search.includes('query=') || bodyClass.includes('search')) { return true; } // Страницы актёров/режиссёров — скрываем if (search.includes('component=actor') || search.includes('job=acting') || search.includes('job=director')) { return false; } // Остальные разделы — стандартная логика var sectionType = self.detectSectionType(self.getCurrentSection()); return sectionType !== ''; } catch(e) { console.error("[Captions Fix v2] Ошибка shouldShowCaptions:", e); } return false; // в остальных случаях скрываем }; self.generateCSS = function() { var decision = self.shouldShowCaptions(); if (decision === self.lastDecision) return self.styleElement ? self.styleElement.textContent : ''; self.lastDecision = decision; if (decision) { return ` body .card:not(.card--collection) .card__age, body .card:not(.card--collection) .card__title { display: block !important; opacity: 1 !important; visibility: visible !important; } `; } else { return ` body .card:not(.card--collection) .card__age, body .card:not(.card--collection) .card__title { display: none !important; } `; } }; self.checkAndUpdate = function() { self.addStyles(); self.applyToCards(); }; self.addStyles = function() { var css = self.generateCSS(); if (!css) return; // если решение не изменилось var styleId = "captions-fix-styles-v2"; var oldStyle = document.getElementById(styleId); if (oldStyle) oldStyle.remove(); var style = document.createElement("style"); style.id = styleId; style.textContent = css; var head = document.head || document.getElementsByTagName('head')[0]; head.insertBefore(style, head.firstChild); self.styleElement = style; }; self.applyToCards = function() { var show = self.shouldShowCaptions(); var cards = document.querySelectorAll('.card:not(.card--collection)'); cards.forEach(function(card) { var age = card.querySelector('.card__age'); var title = card.querySelector('.card__title'); if (age) age.style.display = show ? 'block' : 'none'; if (title) title.style.display = show ? 'block' : 'none'; }); }; self.startObserver = function() { if (self.observer) return; self.observer = new MutationObserver(self.checkAndUpdate); self.observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }); }; } var plugin = new CaptionsFix(); if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function () { plugin.init(); }); } else { plugin.init(); } window.CaptionsFixPlugin = plugin; window.debugCaptions = function() { return { section: plugin.getCurrentSection(), show: plugin.shouldShowCaptions() }; }; })();
-// ==UserScript== // @name InterfaceLAMPA Extended // @version 1.3.2 // @description Ribbon position + description lines control for Lampa interface // ==/UserScript== (function () { 'use strict'; if (window.__bylampa_desc_lines__) return; window.__bylampa_desc_lines__ = true; function waitLampa(cb) { if (typeof Lampa !== 'undefined' && Lampa.SettingsApi) cb(); else setTimeout(() => waitLampa(cb), 300); } waitLampa(init); function init() { /* ================= НАСТРОЙКИ ================= */ // --- Положение ленты --- Lampa.SettingsApi.addParam({ component: 'interface', param: { name: 'RibbonPosition', type: 'select', values: { high: 'Высоко', middle: 'Средне', low: 'Низко' }, default: 'middle' }, field: { name: 'Положение ленты', description: 'Вертикальное положение постеров' }, onChange: applyRibbon }); // --- Количество строк описания (НОВАЯ ЛОГИКА) --- Lampa.SettingsApi.addParam({ component: 'interface', param: { name: 'bylampa_description_lines', type: 'select', values: { 1: '1 строка', 2: '2 строки', 3: '3 строки', 4: '4 строки', 5: '5 строк', }, default: 5 }, field: { name: 'Описание: строки', description: 'Количество строк описания' }, onChange: applyDescriptionLines }); /* ================= ЛЕНТА ================= */ function applyRibbon() { let heightValue = '20'; switch (Lampa.Storage.field('RibbonPosition')) { case 'high': heightValue = '16'; break; case 'middle': heightValue = '20'; break; case 'low': heightValue = '24'; break; } const id = 'custom-interface-ribbon-style'; document.getElementById(id)?.remove(); const style = document.createElement('style'); style.id = id; style.textContent = ` .new-interface-info { height: ${heightValue}em !important; } `; document.head.appendChild(style); } /* ================= ОПИСАНИЕ (ТВОЙ КОД) ================= */ function applyDescriptionLines() { const lines = Number( Lampa.Storage.field('bylampa_description_lines') || 4 ); const id = 'bylampa-description-lines-style'; document.getElementById(id)?.remove(); const style = document.createElement('style'); style.id = id; style.textContent = ` .new-interface-info__description { display: -webkit-box !important; -webkit-box-orient: vertical !important; -webkit-line-clamp: ${lines} !important; overflow: hidden !important; } `; document.head.appendChild(style); } /* ================= ИНИЦИАЛИЗАЦИЯ ================= */ applyRibbon(); applyDescriptionLines(); Lampa.Listener.follow('full', applyRibbon); Lampa.Listener.follow('full', applyDescriptionLines); Lampa.Listener.follow('activity', applyDescriptionLines); Lampa.Listener.follow('back', applyDescriptionLines); } })();
+(function () {
+  'use strict';
+
+  if (typeof Lampa === 'undefined') return;
+
+  /* ==================================================
+     PART 1: CAPTIONS FIX
+  ================================================== */
+
+  if (!window.captions_fix_plugin_v2) {
+    window.captions_fix_plugin_v2 = true;
+
+    function CaptionsFix() {
+      var self = this;
+      self.initialized = false;
+      self.styleElement = null;
+      self.observer = null;
+      self.lastDecision = null;
+
+      self.FAVORITE_SUBSECTIONS = [
+        'book','scheduled','wath','like','look','viewed','thrown','continued'
+      ];
+
+      self.SECTION_KEYWORDS = {
+        releases: ['релиз','release','новинк'],
+        favorites: ['избранн','favorit','закладк','bookmark'],
+        history: ['истори','histor','просмотр','watch'],
+        torrents: ['торрент','torrent','загрузк','download'],
+        search: ['поиск','search','искан','find']
+      };
+
+      self.init = function () {
+        if (self.initialized) return;
+        if (!document.body) {
+          requestAnimationFrame(self.init);
+          return;
+        }
+        self.startObserver();
+        self.checkAndUpdate();
+        self.initialized = true;
+        console.log('[Lampa Interface Fix] CaptionsFix initialized');
+      };
+
+      self.getCurrentSection = function () {
+        try {
+          var title = document.querySelector('.head__title');
+          if (title && title.textContent) return title.textContent.trim();
+
+          if (Lampa.Activity && Lampa.Activity.active) {
+            var a = Lampa.Activity.active();
+            if (a?.title) return a.title;
+            if (a?.name) return a.name;
+          }
+        } catch (e) {}
+        return '';
+      };
+
+      self.detectSectionType = function (name) {
+        if (!name) return '';
+        name = name.toLowerCase();
+        for (var k in self.SECTION_KEYWORDS) {
+          for (var i = 0; i < self.SECTION_KEYWORDS[k].length; i++) {
+            if (name.includes(self.SECTION_KEYWORDS[k][i])) return k;
+          }
+        }
+        return '';
+      };
+
+      self.shouldShowCaptions = function () {
+        try {
+          var search = location.search.toLowerCase();
+          var params = new URLSearchParams(location.search);
+
+          var type = params.get('type')?.toLowerCase() || '';
+          var comp = params.get('component')?.toLowerCase() || '';
+
+          var act = Lampa.Activity?.active?.();
+          var actType = act?.type?.toLowerCase() || '';
+          var actComp = act?.component?.toLowerCase() || '';
+
+          if (
+            (comp === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(type)) ||
+            (actComp === 'favorite' && self.FAVORITE_SUBSECTIONS.includes(actType)) ||
+            comp === 'bookmarks' || actComp === 'bookmarks'
+          ) return true;
+
+          if (search.includes('card=') &&
+              (search.includes('media=movie') || search.includes('media=tv')))
+            return true;
+
+          if (search.includes('query=')) return true;
+
+          if (search.includes('component=actor')) return false;
+
+          return self.detectSectionType(self.getCurrentSection()) !== '';
+        } catch (e) {
+          return false;
+        }
+      };
+
+      self.applyStyles = function () {
+        var show = self.shouldShowCaptions();
+        if (show === self.lastDecision) return;
+        self.lastDecision = show;
+
+        var id = 'lampa-interface-fix-captions';
+        document.getElementById(id)?.remove();
+
+        var style = document.createElement('style');
+        style.id = id;
+        style.textContent = `
+          .card:not(.card--collection) .card__title,
+          .card:not(.card--collection) .card__age {
+            display: ${show ? 'block' : 'none'} !important;
+          }
+        `;
+        document.head.appendChild(style);
+      };
+
+      self.checkAndUpdate = function () {
+        self.applyStyles();
+      };
+
+      self.startObserver = function () {
+        if (self.observer) return;
+        self.observer = new MutationObserver(self.checkAndUpdate);
+        self.observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['class']
+        });
+      };
+    }
+
+    new CaptionsFix().init();
+  }
+
+  /* ==================================================
+     PART 2: INTERFACE EXTENDED (Ribbon + Description)
+  ================================================== */
+
+  function waitLampaSettings(cb) {
+    if (Lampa.SettingsApi && Lampa.Storage) cb();
+    else setTimeout(() => waitLampaSettings(cb), 300);
+  }
+
+  waitLampaSettings(function () {
+
+    if (window.lampa_interface_extended) return;
+    window.lampa_interface_extended = true;
+
+    /* Ribbon position */
+    Lampa.SettingsApi.addParam({
+      component: 'interface',
+      param: {
+        name: 'RibbonPosition',
+        type: 'select',
+        values: { high: 'Высоко', middle: 'Средне', low: 'Низко' },
+        default: 'middle'
+      },
+      field: { name: 'Положение ленты' },
+      onChange: applyRibbon
+    });
+
+    /* Description lines */
+    Lampa.SettingsApi.addParam({
+      component: 'interface',
+      param: {
+        name: 'description_lines_fix',
+        type: 'select',
+        values: { 1:'1',2:'2',3:'3',4:'4',5:'5' },
+        default: 5
+      },
+      field: { name: 'Описание: строки' },
+      onChange: applyDescription
+    });
+
+    function applyRibbon() {
+      const val = Lampa.Storage.field('RibbonPosition');
+      const map = { high:16, middle:20, low:24 };
+
+      document.getElementById('lampa-ribbon-fix')?.remove();
+      const s = document.createElement('style');
+      s.id = 'lampa-ribbon-fix';
+      s.textContent = `
+        .new-interface-info {
+          height: ${map[val] || 20}em !important;
+        }
+      `;
+      document.head.appendChild(s);
+    }
+
+    function applyDescription() {
+      const lines = Number(Lampa.Storage.field('description_lines_fix') || 5);
+      document.getElementById('lampa-desc-fix')?.remove();
+      const s = document.createElement('style');
+      s.id = 'lampa-desc-fix';
+      s.textContent = `
+        .new-interface-info__description {
+          display: -webkit-box !important;
+          -webkit-line-clamp: ${lines} !important;
+          -webkit-box-orient: vertical !important;
+          overflow: hidden !important;
+        }
+      `;
+      document.head.appendChild(s);
+    }
+
+    applyRibbon();
+    applyDescription();
+
+    Lampa.Listener.follow('activity', applyDescription);
+    Lampa.Listener.follow('full', applyRibbon);
+  });
+
+})();

@@ -1,10 +1,10 @@
 (function () {
 "use strict";
 if (typeof Lampa === "undefined") return;
-if (window.title_plugin_simple) return;
-window.title_plugin_simple = true;
+if (window.title_plugin_orig_en) return;
+window.title_plugin_orig_en = true;
 
-/* ===== Локализация (минимум) ===== */
+/* ===== Минимальная локализация ===== */
 Lampa.Lang.add({
   title_plugin: {
     ru: "Title Plugin",
@@ -38,29 +38,40 @@ function showTitles(card) {
 
   const box = ensureBox(render);
 
+  // Оригинальное название
   const orig = card.original_title || card.original_name;
 
+  // alternative_titles есть ТОЛЬКО на полной странице
   const alt =
     card.alternative_titles?.titles ||
     card.alternative_titles?.results ||
     [];
 
-  // 🔥 EN БЕРЁТСЯ СРАЗУ
-  const en = alt.find(t => t.iso_3166_1 === "US")?.title;
+  // 🔥 EN без задержки:
+  // 1) alternative_titles (если есть)
+  // 2) card.title / card.name (в карточках)
+  const en =
+    alt.find(t => t.iso_3166_1 === "US")?.title ||
+    card.title ||
+    card.name;
 
   const lines = [];
 
   // Оригинальное
-  lines.push(
-    `<div style="font-size:1.25em;">${orig}
-      ${countryFlag(card.origin_country?.[0])}
-    </div>`
-  );
+  if (orig) {
+    lines.push(
+      `<div style="font-size:1.25em;">
+        ${orig}
+        ${countryFlag(card.origin_country?.[0])}
+      </div>`
+    );
+  }
 
-  // Английское
+  // Английское (если отличается)
   if (en && en !== orig) {
     lines.push(
-      `<div style="font-size:1.25em;">${en}
+      `<div style="font-size:1.25em;">
+        ${en}
         ${countryFlag("US")}
       </div>`
     );

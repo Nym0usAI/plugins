@@ -1,16 +1,8 @@
 (function () {
 "use strict";
 if (typeof Lampa === "undefined") return;
-if (window.title_plugin_orig_en) return;
-window.title_plugin_orig_en = true;
-
-/* ===== Минимальная локализация ===== */
-Lampa.Lang.add({
-  title_plugin: {
-    ru: "Title Plugin",
-    en: "Title Plugin"
-  }
-});
+if (window.title_plugin_orig_en_fix) return;
+window.title_plugin_orig_en_fix = true;
 
 /* ===== Флаг страны ===== */
 function countryFlag(code) {
@@ -38,26 +30,22 @@ function showTitles(card) {
 
   const box = ensureBox(render);
 
-  // Оригинальное название
   const orig = card.original_title || card.original_name;
 
-  // alternative_titles есть ТОЛЬКО на полной странице
   const alt =
     card.alternative_titles?.titles ||
     card.alternative_titles?.results ||
     [];
 
-  // 🔥 EN без задержки:
-  // 1) alternative_titles (если есть)
-  // 2) card.title / card.name (в карточках)
+  // ✅ КОРРЕКТНОЕ EN
   const en =
     alt.find(t => t.iso_3166_1 === "US")?.title ||
-    card.title ||
-    card.name;
+    (card.original_language === "en"
+      ? (card.title || card.name)
+      : "");
 
   const lines = [];
 
-  // Оригинальное
   if (orig) {
     lines.push(
       `<div style="font-size:1.25em;">
@@ -67,7 +55,6 @@ function showTitles(card) {
     );
   }
 
-  // Английское (если отличается)
   if (en && en !== orig) {
     lines.push(
       `<div style="font-size:1.25em;">

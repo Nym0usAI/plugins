@@ -1,146 +1,94 @@
 (function () {
-  'use strict';
+    'use strict';
 
-  var Defined = {
-    api: 'lampac',
-    localhost: 'http://wtch.ch/',
-    apn: ''
-  };
+    // --- Константы плагина ---
+    const STYLE_TAG = 'cardbtn-style';           // ID для тега стилей
+    const ORDER_STORAGE = 'cardbtn_order';       // Ключ для хранения порядка кнопок
+    const HIDE_STORAGE = 'cardbtn_hidden';       // Ключ для хранения скрытых кнопок
+    let currentCard = null;                      // Текущий контейнер карточки
 
-  var balansers_with_search;
+    // Метки по умолчанию для кнопок без текста
+    const DEFAULT_LABELS = {
+        'button--play': () => Lampa.Lang.translate('title_watch'),
+        'button--book': () => Lampa.Lang.translate('settings_input_links'),
+        'button--reaction': () => Lampa.Lang.translate('title_reactions'),
+        'button--subscribe': () => Lampa.Lang.translate('title_subscribe'),
+        'button--options': () => Lampa.Lang.translate('more'),
+        'view--torrent': () => Lampa.Lang.translate('full_torrents'),
+        'view--trailer': () => Lampa.Lang.translate('full_trailers')
+    };
 
-  /* ===============================
-     УНИКАЛЬНЫЙ ID
-  =============================== */
-
-  var unic_id = Lampa.Storage.get('lampac_unic_id', '');
-  if (!unic_id) {
-    unic_id = Lampa.Utils.uid(8).toLowerCase();
-    Lampa.Storage.set('lampac_unic_id', unic_id);
-  }
-
-  /* ===============================
-     СЕТЕВЫЕ ЗАПРОСЫ
-  =============================== */
-
-  function request(url, data, method) {
-    method = method || 'POST';
-
-    return new Promise(function (resolve, reject) {
-      Lampa.Network.request(
-        url,
-        data,
-        function (result) {
-          resolve(result);
-        },
-        function (a, c) {
-          reject(c);
-        },
-        false,
-        {
-          method: method,
-          headers: {
-            'X-Lampac': unic_id
-          }
+    // --- Стили плагина ---
+    function addStyles() {
+        if (document.getElementById(STYLE_TAG)) return;
+        const css = `
+        .card-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
         }
-      );
+        .card-button-hidden {
+            display: none !important;
+        }
+        .card-button span {
+            display: inline-block;
+            margin-left: 5px;
+        }`;
+        const style = document.createElement('style');
+        style.id = STYLE_TAG;
+        style.innerHTML = css;
+        document.head.appendChild(style);
+    }
+
+    // --- Поиск кнопок внутри карточки ---
+    function findCardButtons(container) {
+        return Array.from(container.querySelectorAll('.full-start__button'))
+            .filter(btn => !btn.classList.contains('button--edit-order') && !btn.classList.contains('button--folder'));
+    }
+
+    // --- Получение текста кнопки ---
+    function getButtonText(btn) {
+        let text = btn.querySelector('span')?.textContent?.trim();
+        if (!text) {
+            const cls = Array.from(btn.classList).find(c => DEFAULT_LABELS[c]);
+            if (cls) text = DEFAULT_LABELS[cls]();
+            else text = Lampa.Lang.translate('buttons_plugin_button_unknown') || 'Button';
+        }
+        return text;
+    }
+
+    // --- Применение стандартного стиля и текста ---
+    function applyButtons(card) {
+        const buttons = findCardButtons(card);
+        buttons.forEach(btn => {
+            btn.classList.remove('card-button-hidden');
+            btn.classList.add('card-button');
+            const span = btn.querySelector('span');
+            if (!span) {
+                const text = getButtonText(btn);
+                const spanEl = document.createElement('span');
+                spanEl.textContent = text;
+                btn.appendChild(spanEl);
+            }
+        });
+    }
+
+    // --- Основная функция обновления карточки ---
+    function updateCard(card) {
+        if (!card) return;
+        currentCard = card;
+        addStyles();
+        applyButtons(card);
+    }
+
+    // --- Слежение за открытием карточек ---
+    Lampa.Controller.add('full_start', {
+        toggle: function () {
+            const card = document.querySelector('.full-start-new__buttons');
+            if (card && card !== currentCard) {
+                updateCard(card);
+            }
+        }
     });
-  }
-
-  function api(method, data) {
-    return request(Defined.localhost + method, data);
-  }
-
-  function search(params) {
-    return api('search', params);
-  }
-
-  function source(params) {
-    return api('source', params);
-  }
-
-  /* ===============================
-     UI ПЛАГИНА
-  =============================== */
-
-  function create(params) {
-    var html = $('<div class="lampac"></div>');
-    var body = $('<div class="lampac__body"></div>');
-    var loader = $('<div class="lampac__loader"><div></div></div>');
-    var hint = $('<div class="lampac__hint">Нажмите OK — Смотреть</div>');
-
-    html.append(body);
-    html.append(loader);
-    html.append(hint);
-
-    function loading(status) {
-      loader.toggleClass('active', status);
-    }
-
-    function empty() {
-      body.html('<div class="empty">Ничего не найдено</div>');
-    }
-
-    function render(items) {
-      body.empty();
-
-      items.forEach(function (item) {
-        var element = $('<div class="lampac__item"></div>');
-        element.text(item.title || item.name);
-
-        /* ✅ ПРАВИЛЬНЫЕ СОБЫТИЯ LAMPA */
-        element.on('hover:enter', function () {
-          hint.addClass('active');
-        });
-
-        element.on('hover:leave', function () {
-          hint.removeClass('active');
-        });
-
-        element.on('click', function () {
-          source(item).then(function (result) {
-            Lampa.Player.play(result);
-          });
-        });
-
-        body.append(element);
-      });
-    }
-
-    loading(true);
-
-    search(params)
-      .then(function (result) {
-        loading(false);
-        if (!result || !result.length) empty();
-        else render(result);
-      })
-      .catch(function () {
-        loading(false);
-        empty();
-      });
-
-    return html;
-  }
-
-  /* ===============================
-     РЕГИСТРАЦИЯ
-  =============================== */
-
-  Lampa.Plugin.add('lampac', {
-    title: 'Lampac',
-    description: 'Онлайн источники',
-    version: '1.1.1',
-    type: 'video',
-
-    onRender: function (item) {
-      return create({
-        query: item.title,
-        year: item.year,
-        imdb_id: item.imdb_id,
-        kinopoisk_id: item.kinopoisk_id
-      });
-    }
-  });
 
 })();

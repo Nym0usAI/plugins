@@ -1,13 +1,13 @@
 (function () {
     'use strict';
 
-    // --- Константы плагина ---
-    const STYLE_TAG = 'cardbtn-style';           // ID для тега стилей
-    const ORDER_STORAGE = 'cardbtn_order';       // Ключ для хранения порядка кнопок
-    const HIDE_STORAGE = 'cardbtn_hidden';       // Ключ для хранения скрытых кнопок
-    let currentCard = null;                      // Текущий контейнер карточки
+    // Константы плагина
+    const STYLE_TAG = 'cardbtn-style';
+    const ORDER_STORAGE = 'cardbtn_order';
+    const HIDE_STORAGE = 'cardbtn_hidden';
+    let currentCard = null;
+    let currentActivity = null;
 
-    // Метки по умолчанию для кнопок без текста
     const DEFAULT_LABELS = {
         'button--play': () => Lampa.Lang.translate('title_watch'),
         'button--book': () => Lampa.Lang.translate('settings_input_links'),
@@ -18,77 +18,124 @@
         'view--trailer': () => Lampa.Lang.translate('full_trailers')
     };
 
-    // --- Стили плагина ---
+    // Добавляем стили плагина
     function addStyles() {
         if (document.getElementById(STYLE_TAG)) return;
         const css = `
-        .card-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .card-button-hidden {
-            display: none !important;
-        }
-        .card-button span {
-            display: inline-block;
-            margin-left: 5px;
-        }`;
+            .card-buttons {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .card-button-hidden {
+                display: none !important;
+            }
+        `;
         const style = document.createElement('style');
         style.id = STYLE_TAG;
         style.innerHTML = css;
         document.head.appendChild(style);
     }
 
-    // --- Поиск кнопок внутри карточки ---
-    function findCardButtons(container) {
-        return Array.from(container.querySelectorAll('.full-start__button'))
-            .filter(btn => !btn.classList.contains('button--edit-order') && !btn.classList.contains('button--folder'));
+    // Функция поиска кнопки по ID
+    function findButton(btnId) {
+        let btn = allButtonsOriginal.find(b => getBtnIdentifier(b) === btnId);
+        if (!btn) btn = allButtonsCache.find(b => getBtnIdentifier(b) === btnId);
+        return btn;
     }
 
-    // --- Получение текста кнопки ---
-    function getButtonText(btn) {
-        let text = btn.querySelector('span')?.textContent?.trim();
-        if (!text) {
-            const cls = Array.from(btn.classList).find(c => DEFAULT_LABELS[c]);
-            if (cls) text = DEFAULT_LABELS[cls]();
-            else text = Lampa.Lang.translate('buttons_plugin_button_unknown') || 'Button';
-        }
-        return text;
+    function getBtnIdentifier(button) {
+        const classes = button.attr('class') || '';
+        const text = button.find('span').text().trim().replace(/\s+/g, '');
+        const subtitle = button.attr('data-subtitle') || '';
+        let id = classes.split(' ').filter(c => c.indexOf('view--') === 0 || c.indexOf('button--') === 0).join('') + text;
+        if (subtitle) id += subtitle.replace(/\s+/g, '').substring(0, 30);
+        return id || 'button_unknown';
     }
 
-    // --- Применение стандартного стиля и текста ---
-    function applyButtons(card) {
-        const buttons = findCardButtons(card);
-        buttons.forEach(btn => {
-            btn.classList.remove('card-button-hidden');
-            btn.classList.add('card-button');
-            const span = btn.querySelector('span');
-            if (!span) {
-                const text = getButtonText(btn);
-                const spanEl = document.createElement('span');
-                spanEl.textContent = text;
-                btn.appendChild(spanEl);
+    function detectBtnCategory(button) {
+        const classes = button.attr('class') || '';
+        if (classes.indexOf('shots-view-button') !== -1 || classes.indexOf('shots') !== -1) return 'shots';
+        for (let group of DEFAULT_GROUPS) {
+            for (let pattern of group.patterns) {
+                if (classes.indexOf(pattern) !== -1) return group.name;
             }
+        }
+        return 'other';
+    }
+
+    function shouldSkipBtn(button) {
+        const EXCLUDED_CLASSES = ['button--play', 'button--edit-order', 'button--folder'];
+        const classes = button.attr('class') || '';
+        return EXCLUDED_CLASSES.some(c => classes.indexOf(c) !== -1);
+    }
+
+    // Группировка кнопок
+    function groupBtnsByType(container) {
+        const allButtons = container.find('.full-start__button').not('.button--edit-order, .button--folder, .button--play');
+        const categories = { online: [], torrent: [], trailer: [], shots: [], book: [], reaction: [], subscribe: [], other: [] };
+        allButtons.each(function() {
+            const $btn = $(this);
+            if ($btn.closest('.person-start__bottom').length) return;
+            if (shouldSkipBtn($btn)) return;
+            const type = detectBtnCategory($btn);
+            (categories[type] || categories.other).push($btn);
+        });
+        return categories;
+    }
+
+    function arrangeBtnsByOrder(buttons) {
+        // Простая сортировка по типу
+        const typeOrder = ['online', 'torrent', 'trailer', 'shots', 'book', 'reaction', 'subscribe', 'other'];
+        return buttons.sort((a, b) => {
+            const indexA = typeOrder.indexOf(detectBtnCategory(a));
+            const indexB = typeOrder.indexOf(detectBtnCategory(b));
+            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
         });
     }
 
-    // --- Основная функция обновления карточки ---
-    function updateCard(card) {
-        if (!card) return;
-        currentCard = card;
-        addStyles();
-        applyButtons(card);
+    function applyBtnVisibility(buttons) {
+        const hidden = getHiddenButtons();
+        buttons.forEach(btn => {
+            const id = getBtnIdentifier(btn);
+            btn.toggleClass('hidden', hidden.indexOf(id) !== -1);
+        });
     }
 
-    // --- Слежение за открытием карточек ---
-    Lampa.Controller.add('full_start', {
-        toggle: function () {
-            const card = document.querySelector('.full-start-new__buttons');
-            if (card && card !== currentCard) {
-                updateCard(card);
-            }
-        }
-    });
+    function applyButtonDisplayModes(buttons) {
+        // Только стандартный режим: текст + иконка
+        buttons.forEach(btn => btn.removeClass('button-mode-1 button-mode-2 button-mode-3').addClass('button-mode-1'));
+    }
 
+    // Применяем изменения на странице
+    function applyChanges() {
+        if (!currentContainer) return;
+        const categories = groupBtnsByType(currentContainer);
+        const allButtons = [].concat(categories.online, categories.torrent, categories.trailer, categories.shots,
+            categories.book, categories.reaction, categories.subscribe, categories.other);
+        const sorted = arrangeBtnsByOrder(allButtons);
+        currentButtons = sorted;
+        applyBtnVisibility(sorted);
+        applyButtonDisplayModes(sorted);
+
+        const targetContainer = currentContainer.find('.full-start-new__buttons');
+        if (!targetContainer.length) return;
+
+        targetContainer.find('.full-start__button').not('.button--edit-order').detach();
+        currentButtons.forEach(btn => targetContainer.append(btn));
+    }
+
+    // Вспомогательные функции для хранения
+    function getHiddenButtons() { return Lampa.Storage.get('button_hidden', []); }
+    function setHiddenButtons(hidden) { Lampa.Storage.set('button_hidden', hidden); }
+
+    // Инициализация
+    function init(container) {
+        currentContainer = container;
+        addStyles();
+        applyChanges();
+    }
+
+    // Экспорт
+    window.CardButtonManager = { init, findButton };
 })();

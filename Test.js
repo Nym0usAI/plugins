@@ -1,10 +1,6 @@
 (function () {
   'use strict';
 
-  /* ===============================
-     НАСТРОЙКИ
-  =============================== */
-
   var Defined = {
     api: 'lampac',
     localhost: 'http://wtch.ch/',
@@ -63,23 +59,6 @@
     return api('source', params);
   }
 
-  function settings() {
-    return api('settings', {});
-  }
-
-  /* ===============================
-     БАЛАНСЕРЫ
-  =============================== */
-
-  function getBalancersWithSearch() {
-    if (balansers_with_search) return Promise.resolve(balansers_with_search);
-
-    return settings().then(function (result) {
-      balansers_with_search = result.balancers_with_search || [];
-      return balansers_with_search;
-    });
-  }
-
   /* ===============================
      UI ПЛАГИНА
   =============================== */
@@ -88,11 +67,7 @@
     var html = $('<div class="lampac"></div>');
     var body = $('<div class="lampac__body"></div>');
     var loader = $('<div class="lampac__loader"><div></div></div>');
-
-    /* 🔹 ПОДСКАЗКА (НОВАЯ ЧАСТЬ) */
-    var hint = $(
-      '<div class="lampac__hint">Нажмите OK — Смотреть</div>'
-    );
+    var hint = $('<div class="lampac__hint">Нажмите OK — Смотреть</div>');
 
     html.append(body);
     html.append(loader);
@@ -110,15 +85,15 @@
       body.empty();
 
       items.forEach(function (item) {
-        var element = $('<div class="lampac__item" tabindex="0"></div>');
+        var element = $('<div class="lampac__item"></div>');
         element.text(item.title || item.name);
 
-        /* 🔹 ПОКАЗ ПОДСКАЗКИ ПРИ ФОКУСЕ */
-        element.on('focus', function () {
+        /* ✅ ПРАВИЛЬНЫЕ СОБЫТИЯ LAMPA */
+        element.on('hover:enter', function () {
           hint.addClass('active');
         });
 
-        element.on('blur', function () {
+        element.on('hover:leave', function () {
           hint.removeClass('active');
         });
 
@@ -149,16 +124,14 @@
   }
 
   /* ===============================
-     РЕГИСТРАЦИЯ ПЛАГИНА
+     РЕГИСТРАЦИЯ
   =============================== */
 
   Lampa.Plugin.add('lampac', {
     title: 'Lampac',
     description: 'Онлайн источники',
-    version: '1.1.0',
+    version: '1.1.1',
     type: 'video',
-
-    onLoad: function () {},
 
     onRender: function (item) {
       return create({

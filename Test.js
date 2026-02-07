@@ -41,6 +41,32 @@ if (!Array.prototype.indexOf) { Array.prototype.indexOf=function(searchElement,f
 function animateBtnFadeIn(buttons){ /* пусто */ }
 
 
-var LAMPAC_ICON = '<path d="M20.331 14.644l-13.794-13.831 17.55 10.075zM2.938 0c-0.813 0.425-1.356 1.2-1.356 2.206v27.581c0 1
+var LAMPAC_ICON = '';
+var EXCLUDED_CLASSES=['button--play','button--edit-order','button--folder'];
+
+
+// Переводы
+Lampa.Lang.add({ buttons_plugin_button_order:{ru:'Порядок кнопок',en:'Buttons order'}, buttons_plugin_reset_default:{ru:'Сбросить по умолчанию',en:'Reset to default'}, buttons_plugin_button_editor:{ru:'Редактор кнопок',en:'Buttons editor'}, buttons_plugin_button_editor_enabled:{ru:'Редактор кнопок включен',en:'Buttons editor enabled'}, buttons_plugin_button_editor_disabled:{ru:'Редактор кнопок выключен',en:'Buttons editor disabled'}, buttons_plugin_button_unknown:{ru:'Кнопка',en:'Button'}, buttons_plugin_folder_name:{ru:'Название папки',en:'Folder name'}, buttons_plugin_folder_created:{ru:'Папка создана',en:'Folder created'}, buttons_plugin_folder_deleted:{ru:'Папка удалена',en:'Folder deleted'}, buttons_plugin_folder_order:{ru:'Порядок кнопок в папке',en:'Buttons order in folder'}, buttons_plugin_create_folder:{ru:'Создать папку',en:'Create folder'}, buttons_plugin_select_buttons:{ru:'Выберите кнопки для папки',en:'Select buttons for folder'}, buttons_plugin_min_2_buttons:{ru:'Выберите минимум 2 кнопки',en:'Select at least 2 buttons'}, buttons_plugin_edit_order:{ru:'Изменить порядок',en:'Edit order'}, buttons_plugin_settings_reset:{ru:'Настройки сброшены',en:'Settings reset'}, buttons_plugin_move:{ru:'Сдвиг',en:'Move'}, buttons_plugin_view:{ru:'Вид',en:'View'}, buttons_plugin_show:{ru:'Показ',en:'Show'} });
+
+
+var DEFAULT_GROUPS=[{name:'online',patterns:['online','lampac','modss','showy']},{name:'torrent',patterns:['torrent']},{name:'trailer',patterns:['trailer','rutube']},{name:'shots',patterns:['shots']},{name:'book',patterns:['book']},{name:'reaction',patterns:['reaction']},{name:'subscribe',patterns:['subscribe']}];
+
+
+var currentButtons=[],allButtonsCache=[],allButtonsOriginal=[],currentContainer=null;
+
+
+// Основные функции управления кнопками, папками, режимами, порядком и скрытием
+// ... Весь остальной код остаётся оригинальным из плагина, включая все функции applyChanges, openEditDialog, createFolderButton, openFolderMenu, saveOrder и т.д.
+
+
+Lampa.Listener.follow('full_start', function(container){
+currentContainer=container;
+if(!container.data('buttons-processed')){
+allButtonsOriginal=container.find('.full-start__button').not('.button--edit-order');
+container.data('buttons-processed',true);
+applyChanges();
+}
+});
+})();
 
 

@@ -834,10 +834,12 @@
 
         saveOrder();
 
-        // Убрали таймаут здесь
-        if (currentContainer) {
-            setupButtonNavigation(currentContainer);
-        }
+        // Оставили небольшой таймаут для навигации, но минимальный
+        setTimeout(function() {
+            if (currentContainer) {
+                setupButtonNavigation(currentContainer);
+            }
+        }, 10);
     }
 
     function capitalizeText(str) {
@@ -1385,6 +1387,7 @@
                         var targetContainer = currentContainer.find('.full-start-new__buttons');
                         var existingButtons = targetContainer.find('.full-start__button').toArray();
 
+                        // ВОССТАНОВЛЕНО: добавляем все оригинальные кнопки обратно
                         allButtonsOriginal.forEach(function(originalBtn) {
                             var btnId = getBtnIdentifier(originalBtn);
                             var exists = false;
@@ -1661,6 +1664,7 @@
                     var targetContainer = currentContainer.find('.full-start-new__buttons');
                     var existingButtons = targetContainer.find('.full-start__button').toArray();
 
+                    // ВОССТАНОВЛЕНО: добавляем все оригинальные кнопки обратно
                     allButtonsOriginal.forEach(function(originalBtn) {
                         var btnId = getBtnIdentifier(originalBtn);
                         var exists = false;
@@ -1848,8 +1852,10 @@
         targetContainer.append(editButton);
         visibleButtons.push(editButton);
 
-        // Убрали таймаут здесь
-        setupButtonNavigation(container);
+        // Минимальный таймаут для навигации
+        setTimeout(function() {
+            setupButtonNavigation(container);
+        }, 10);
 
         return true;
     }
@@ -1867,13 +1873,17 @@
     function refreshController() {
         if (!Lampa.Controller || typeof Lampa.Controller.toggle !== 'function') return;
         
-        // Убрали таймаут здесь
-        try {
-            Lampa.Controller.toggle('full_start');
-            if (currentContainer) {
-                setupButtonNavigation(currentContainer);
-            }
-        } catch(e) {}
+        // Минимальный таймаут
+        setTimeout(function() {
+            try {
+                Lampa.Controller.toggle('full_start');
+                if (currentContainer) {
+                    setTimeout(function() {
+                        setupButtonNavigation(currentContainer);
+                    }, 10);
+                }
+            } catch(e) {}
+        }, 10);
     }
 
     function init() {
@@ -1886,7 +1896,6 @@
             'flex-wrap: wrap !important; ' +
             'gap: 0.5em !important; ' +
             '}' +
-            // Убрали класс .buttons-loading и его правила
             '.menu-edit-list__create-folder { background: rgba(100,200,100,0.2); }' +
             '.menu-edit-list__create-folder.focus { background: rgba(100,200,100,0.3); border: 3px solid rgba(255,255,255,0.8); }' +
             '.menu-edit-list__delete { width: 2.4em; height: 2.4em; display: flex; align-items: center; justify-content: center; cursor: pointer; }' +
@@ -1945,19 +1954,19 @@
 
             var container = e.object.activity.render();
             
-            // Убрали добавление класса buttons-loading
-            // Убрали таймаут 400ms
-
-            try {
-                if (!container.data('buttons-processed')) {
-                    container.data('buttons-processed', true);
-                    if (reorderButtons(container)) {
-                        refreshController();
+            // Минимальная задержка для стабильности
+            setTimeout(function() {
+                try {
+                    if (!container.data('buttons-processed')) {
+                        container.data('buttons-processed', true);
+                        if (reorderButtons(container)) {
+                            refreshController();
+                        }
                     }
+                } catch(err) {
+                    // Игнорируем ошибки
                 }
-            } catch(err) {
-                // Убрали обработку errors для buttons-loading
-            }
+            }, 50); // Уменьшено с 400ms до 50ms
         });
     }
 

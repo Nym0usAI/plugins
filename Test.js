@@ -370,6 +370,7 @@
         var text = button.find('span').text().trim().replace(/\s+/g, '_');
         var subtitle = button.attr('data-subtitle') || '';
 
+        // Специальная обработка для известных типов кнопок
         if (classes.indexOf('modss') !== -1 || text.indexOf('MODS') !== -1 || text.indexOf('MOD') !== -1) {
             return 'modss_online_button';
         }
@@ -378,6 +379,27 @@
             return 'showy_online_button';
         }
 
+        // Трейлеры - специальная обработка
+        if (classes.indexOf('trailer') !== -1 || text.indexOf('Трейлер') !== -1 || text.indexOf('Trailer') !== -1 || text.indexOf('Трэлер') !== -1) {
+            return 'trailer_button';
+        }
+
+        // Онлайн просмотр
+        if (classes.indexOf('online') !== -1 || text.indexOf('Онлайн') !== -1 || text.indexOf('Online') !== -1) {
+            return 'online_button';
+        }
+
+        // Торренты
+        if (classes.indexOf('torrent') !== -1 || text.indexOf('Торрент') !== -1 || text.indexOf('Torrent') !== -1) {
+            return 'torrent_button';
+        }
+
+        // Shots
+        if (classes.indexOf('shots') !== -1 || text.indexOf('Кадры') !== -1 || text.indexOf('Shots') !== -1) {
+            return 'shots_button';
+        }
+
+        // По умолчанию - комбинация классов и текста
         var viewClasses = classes.split(' ').filter(function(c) {
             return c.indexOf('view--') === 0 || c.indexOf('button--') === 0;
         }).join('_');
@@ -390,21 +412,37 @@
         if (subtitle) {
             id = id + '_' + subtitle.replace(/\s+/g, '_').substring(0, 30);
         }
+        
         return id;
     }
 
     function detectBtnCategory(button) {
         var classes = button.attr('class') || '';
+        var text = button.find('span').text().trim().toLowerCase();
 
         // Специальная проверка для Shots - должна быть первой!
-        if (classes.indexOf('shots-view-button') !== -1 || classes.indexOf('shots') !== -1) {
+        if (classes.indexOf('shots-view-button') !== -1 || classes.indexOf('shots') !== -1 || text.indexOf('кадры') !== -1 || text.indexOf('shots') !== -1) {
             return 'shots';
         }
 
         for (var i = 0; i < DEFAULT_GROUPS.length; i++) {
             var group = DEFAULT_GROUPS[i];
             for (var j = 0; j < group.patterns.length; j++) {
-                if (classes.indexOf(group.patterns[j]) !== -1) {
+                var pattern = group.patterns[j];
+                // Проверяем в классах
+                if (classes.indexOf(pattern) !== -1) {
+                    // Дополнительная проверка для трейлеров
+                    if (group.name === 'trailer') {
+                        // Убедимся что это действительно трейлер, а не что-то другое
+                        if (classes.indexOf('rutube') !== -1 || text.indexOf('трейлер') !== -1 || text.indexOf('trailer') !== -1) {
+                            return group.name;
+                        }
+                    } else {
+                        return group.name;
+                    }
+                }
+                // Также проверяем в тексте кнопки
+                if (text.indexOf(pattern) !== -1) {
                     return group.name;
                 }
             }
@@ -436,6 +474,8 @@
             other: []
         };
 
+        var buttonIds = {}; // Хеш для отслеживания уже добавленных кнопок
+
         allButtons.each(function() {
             var $btn = $(this);
 
@@ -445,6 +485,17 @@
             }
 
             if (shouldSkipBtn($btn)) return;
+
+            // Получаем уникальный идентификатор кнопки
+            var btnId = getBtnIdentifier($btn);
+            
+            // Проверяем, не была ли уже добавлена кнопка с таким ID
+            if (buttonIds[btnId]) {
+                return; // Пропускаем дубликат
+            }
+            
+            // Помечаем кнопку как добавленную
+            buttonIds[btnId] = true;
 
             var type = detectBtnCategory($btn);
 
@@ -834,7 +885,7 @@
 
         saveOrder();
 
-        // Оставили небольшой таймаут для навигации, но минимальный
+        // Минимальный таймаут для навигации
         setTimeout(function() {
             if (currentContainer) {
                 setupButtonNavigation(currentContainer);
@@ -1966,7 +2017,7 @@
                 } catch(err) {
                     // Игнорируем ошибки
                 }
-            }, 50); // Уменьшено с 400ms до 50ms
+            }, 50);
         });
     }
 

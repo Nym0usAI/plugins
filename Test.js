@@ -834,11 +834,10 @@
 
         saveOrder();
 
-        setTimeout(function() {
-            if (currentContainer) {
-                setupButtonNavigation(currentContainer);
-            }
-        }, 100);
+        // Убрали таймаут здесь
+        if (currentContainer) {
+            setupButtonNavigation(currentContainer);
+        }
     }
 
     function capitalizeText(str) {
@@ -1849,9 +1848,8 @@
         targetContainer.append(editButton);
         visibleButtons.push(editButton);
 
-        setTimeout(function() {
-            setupButtonNavigation(container);
-        }, 100);
+        // Убрали таймаут здесь
+        setupButtonNavigation(container);
 
         return true;
     }
@@ -1869,16 +1867,13 @@
     function refreshController() {
         if (!Lampa.Controller || typeof Lampa.Controller.toggle !== 'function') return;
         
-        setTimeout(function() {
-            try {
-                Lampa.Controller.toggle('full_start');
-                if (currentContainer) {
-                    setTimeout(function() {
-                        setupButtonNavigation(currentContainer);
-                    }, 100);
-                }
-            } catch(e) {}
-        }, 50);
+        // Убрали таймаут здесь
+        try {
+            Lampa.Controller.toggle('full_start');
+            if (currentContainer) {
+                setupButtonNavigation(currentContainer);
+            }
+        } catch(e) {}
     }
 
     function init() {
@@ -1891,7 +1886,7 @@
             'flex-wrap: wrap !important; ' +
             'gap: 0.5em !important; ' +
             '}' +
-            '.full-start-new__buttons.buttons-loading .full-start__button { visibility: hidden !important; }' +
+            // Убрали класс .buttons-loading и его правила
             '.menu-edit-list__create-folder { background: rgba(100,200,100,0.2); }' +
             '.menu-edit-list__create-folder.focus { background: rgba(100,200,100,0.3); border: 3px solid rgba(255,255,255,0.8); }' +
             '.menu-edit-list__delete { width: 2.4em; height: 2.4em; display: flex; align-items: center; justify-content: center; cursor: pointer; }' +
@@ -1949,28 +1944,20 @@
             if (e.type !== 'complite') return;
 
             var container = e.object.activity.render();
-            var targetContainer = container.find('.full-start-new__buttons');
-            if (targetContainer.length) {
-                targetContainer.addClass('buttons-loading');
-            }
+            
+            // Убрали добавление класса buttons-loading
+            // Убрали таймаут 400ms
 
-            setTimeout(function() {
-                try {
-                    if (!container.data('buttons-processed')) {
-                        container.data('buttons-processed', true);
-                        if (reorderButtons(container)) {
-                            if (targetContainer.length) {
-                                targetContainer.removeClass('buttons-loading');
-                            }
-                            refreshController();
-                        }
-                    }
-                } catch(err) {
-                    if (targetContainer.length) {
-                        targetContainer.removeClass('buttons-loading');
+            try {
+                if (!container.data('buttons-processed')) {
+                    container.data('buttons-processed', true);
+                    if (reorderButtons(container)) {
+                        refreshController();
                     }
                 }
-            }, 400);
+            } catch(err) {
+                // Убрали обработку errors для buttons-loading
+            }
         });
     }
 

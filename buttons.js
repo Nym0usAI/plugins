@@ -1,6 +1,6 @@
 /** 
  * Плагин управления кнопками Lampa 
- * Версия: 1.1.1 
+ * Версия: 1.1.2 
  * Автор: @Cheeze_l 
  * 
  * Описание: 
@@ -140,140 +140,51 @@
 
     var EXCLUDED_CLASSES = ['button--play', 'button--edit-order', 'button--folder'];
 
-    // Функция перевода
+    // Функция перевода (только русский)
     function getTranslation(key) {
-        var translated = Lampa.Lang.translate(key);
-        return translated && translated !== key ? translated : key.replace('buttons_plugin_', '');
+        var translations = {
+            'buttons_plugin_button_order': 'Порядок кнопок',
+            'buttons_plugin_reset_default': 'Сбросить по умолчанию',
+            'buttons_plugin_button_editor': 'Редактор кнопок',
+            'buttons_plugin_button_editor_enabled': 'Редактор кнопок включен',
+            'buttons_plugin_button_editor_disabled': 'Редактор кнопок выключен',
+            'buttons_plugin_button_unknown': 'Кнопка',
+            'buttons_plugin_folder_name': 'Название папки',
+            'buttons_plugin_folder_created': 'Папка создана',
+            'buttons_plugin_folder_deleted': 'Папка удалена',
+            'buttons_plugin_folder_order': 'Порядок кнопок в папке',
+            'buttons_plugin_create_folder': 'Создать папку',
+            'buttons_plugin_select_buttons': 'Выберите кнопки для папки',
+            'buttons_plugin_min_2_buttons': 'Выберите минимум 2 кнопки',
+            'buttons_plugin_edit_order': 'Изменить порядок',
+            'buttons_plugin_settings_reset': 'Настройки сброшены',
+            'buttons_plugin_move': 'Сдвиг',
+            'buttons_plugin_view': 'Вид',
+            'buttons_plugin_show': 'Показ'
+        };
+        return translations[key] || key.replace('buttons_plugin_', '');
     }
 
-    // Добавляем переводы для UI элементов плагина
+    // Добавляем переводы для UI элементов плагина (только русский)
     Lampa.Lang.add({
-        buttons_plugin_button_order: {
-            uk: 'Порядок кнопок',
-            ru: 'Порядок кнопок',
-            en: 'Buttons order',
-            be: 'Парадак кнопак',
-            zh: '按钮顺序'
-        },
-        buttons_plugin_reset_default: {
-            uk: 'Скинути за замовчуванням',
-            ru: 'Сбросить по умолчанию',
-            en: 'Reset to default',
-            be: 'Скінуць па змаўчанні',
-            zh: '重置为默认'
-        },
-        buttons_plugin_button_editor: {
-            uk: 'Редактор кнопок',
-            ru: 'Редактор кнопок',
-            en: 'Buttons editor',
-            be: 'Рэдактар кнопак',
-            zh: '按钮编辑器'
-        },
-        buttons_plugin_button_editor_enabled: {
-            uk: 'Редактор кнопок включено',
-            ru: 'Редактор кнопок включен',
-            en: 'Buttons editor enabled',
-            be: 'Рэдактар кнопак уключаны',
-            zh: '按钮编辑器已启用'
-        },
-        buttons_plugin_button_editor_disabled: {
-            uk: 'Редактор кнопок вимкнено',
-            ru: 'Редактор кнопок выключен',
-            en: 'Buttons editor disabled',
-            be: 'Рэдактар кнопак адключаны',
-            zh: '按钮编辑器已禁用'
-        },
-        buttons_plugin_button_unknown: {
-            uk: 'Кнопка',
-            ru: 'Кнопка',
-            en: 'Button',
-            be: 'Кнопка',
-            zh: '按钮'
-        },
-        buttons_plugin_folder_name: {
-            uk: 'Назва папки',
-            ru: 'Название папки',
-            en: 'Folder name',
-            be: 'Назва папкі',
-            zh: '文件夹名称'
-        },
-        buttons_plugin_folder_created: {
-            uk: 'Папку створено',
-            ru: 'Папка создана',
-            en: 'Folder created',
-            be: 'Папка створана',
-            zh: '文件夹已创建'
-        },
-        buttons_plugin_folder_deleted: {
-            uk: 'Папку видалено',
-            ru: 'Папка удалена',
-            en: 'Folder deleted',
-            be: 'Папка выдалена',
-            zh: '文件夹已删除'
-        },
-        buttons_plugin_folder_order: {
-            uk: 'Порядок кнопок в папці',
-            ru: 'Порядок кнопок в папке',
-            en: 'Buttons order in folder',
-            be: 'Парадак кнопак у папцы',
-            zh: '文件夹中的按钮顺序'
-        },
-        buttons_plugin_create_folder: {
-            uk: 'Створити папку',
-            ru: 'Создать папку',
-            en: 'Create folder',
-            be: 'Стварыць папку',
-            zh: '创建文件夹'
-        },
-        buttons_plugin_select_buttons: {
-            uk: 'Виберіть кнопки для папки',
-            ru: 'Выберите кнопки для папки',
-            en: 'Select buttons for folder',
-            be: 'Выберыце кнопкі для папкі',
-            zh: '选择文件夹的按钮'
-        },
-        buttons_plugin_min_2_buttons: {
-            uk: 'Виберіть мінімум 2 кнопки',
-            ru: 'Выберите минимум 2 кнопки',
-            en: 'Select at least 2 buttons',
-            be: 'Выберыце мінімум 2 кнопкі',
-            zh: '至少选择2个按钮'
-        },
-        buttons_plugin_edit_order: {
-            uk: 'Змінити порядок',
-            ru: 'Изменить порядок',
-            en: 'Edit order',
-            be: 'Змяніць парадак',
-            zh: '编辑顺序'
-        },
-        buttons_plugin_settings_reset: {
-            uk: 'Налаштування скинуто',
-            ru: 'Настройки сброшены',
-            en: 'Settings reset',
-            be: 'Налады скінуты',
-            zh: '设置已重置'
-        },
-        buttons_plugin_move: {
-            uk: 'Зсув',
-            ru: 'Сдвиг',
-            en: 'Move',
-            be: 'Зрух',
-            zh: '移动'
-        },
-        buttons_plugin_view: {
-            uk: 'Вигляд',
-            ru: 'Вид',
-            en: 'View',
-            be: 'Выгляд',
-            zh: '视图'
-        },
-        buttons_plugin_show: {
-            uk: 'Показ',
-            ru: 'Показ',
-            en: 'Show',
-            be: 'Паказ',
-            zh: '显示'
-        }
+        buttons_plugin_button_order: 'Порядок кнопок',
+        buttons_plugin_reset_default: 'Сбросить по умолчанию',
+        buttons_plugin_button_editor: 'Редактор кнопок',
+        buttons_plugin_button_editor_enabled: 'Редактор кнопок включен',
+        buttons_plugin_button_editor_disabled: 'Редактор кнопок выключен',
+        buttons_plugin_button_unknown: 'Кнопка',
+        buttons_plugin_folder_name: 'Название папки',
+        buttons_plugin_folder_created: 'Папка создана',
+        buttons_plugin_folder_deleted: 'Папка удалена',
+        buttons_plugin_folder_order: 'Порядок кнопок в папке',
+        buttons_plugin_create_folder: 'Создать папку',
+        buttons_plugin_select_buttons: 'Выберите кнопки для папки',
+        buttons_plugin_min_2_buttons: 'Выберите минимум 2 кнопки',
+        buttons_plugin_edit_order: 'Изменить порядок',
+        buttons_plugin_settings_reset: 'Настройки сброшены',
+        buttons_plugin_move: 'Сдвиг',
+        buttons_plugin_view: 'Вид',
+        buttons_plugin_show: 'Показ'
     });
 
     var DEFAULT_GROUPS = [
@@ -290,6 +201,7 @@
     var allButtonsCache = [];
     var allButtonsOriginal = [];
     var currentContainer = null;
+    var isProcessing = false;
 
     // Вспомогательная функция для поиска кнопки
     function findButton(btnId) {
@@ -711,7 +623,8 @@
         var targetContainer = currentContainer.find('.full-start-new__buttons');
         if (!targetContainer.length) return;
 
-        targetContainer.find('.full-start__button').not('.button--edit-order').detach();
+        // Сначала скрываем все существующие кнопки
+        targetContainer.find('.full-start__button').not('.button--edit-order').addClass('buttons-plugin-hidden-temp');
 
         var itemOrder = getItemOrder();
         var visibleButtons = [];
@@ -734,6 +647,7 @@
                     if (buttonsInFolders.indexOf(btnId) === -1) {
                         var btn = currentButtons.find(function(b) { return getBtnIdentifier(b) === btnId; });
                         if (btn && !btn.hasClass('hidden')) {
+                            btn.removeClass('buttons-plugin-hidden-temp');
                             targetContainer.append(btn);
                             visibleButtons.push(btn);
                             addedButtons.push(btnId);
@@ -790,12 +704,15 @@
                     }
 
                     if (insertBefore && insertBefore.length) {
+                        btn.removeClass('buttons-plugin-hidden-temp');
                         btn.insertBefore(insertBefore);
                     } else {
                         var editBtn = targetContainer.find('.button--edit-order');
                         if (editBtn.length) {
+                            btn.removeClass('buttons-plugin-hidden-temp');
                             btn.insertBefore(editBtn);
                         } else {
+                            btn.removeClass('buttons-plugin-hidden-temp');
                             targetContainer.append(btn);
                         }
                     }
@@ -814,6 +731,7 @@
             currentButtons.forEach(function(btn) {
                 var btnId = getBtnIdentifier(btn);
                 if (!btn.hasClass('hidden') && buttonsInFolders.indexOf(btnId) === -1) {
+                    btn.removeClass('buttons-plugin-hidden-temp');
                     targetContainer.append(btn);
                     visibleButtons.push(btn);
                 }
@@ -825,6 +743,9 @@
                 visibleButtons.push(folderBtn);
             });
         }
+
+        // Удаляем временно скрытые кнопки
+        targetContainer.find('.buttons-plugin-hidden-temp').remove();
 
         var editBtn = targetContainer.find('.button--edit-order');
         if (editBtn.length) {
@@ -1065,159 +986,12 @@
         }
     }
 
-    function createFolder(name, buttonIds) {
-        var folders = getFolders();
-        var folder = {
-            id: 'folder_' + Date.now(),
-            name: name,
-            buttons: buttonIds
-        };
-        folders.push(folder);
-        setFolders(folders);
-        return folder;
-    }
-
     function deleteFolder(folderId) {
         var folders = getFolders();
         folders = folders.filter(function(f) {
             return f.id !== folderId;
         });
         setFolders(folders);
-    }
-
-    function openCreateFolderDialog() {
-        Lampa.Input.edit({
-            free: true,
-            title: getTranslation('buttons_plugin_folder_name'),
-            nosave: true,
-            value: '',
-            nomic: true
-        }, function(folderName) {
-            if (!folderName || !folderName.trim()) {
-                Lampa.Noty.show(getTranslation('buttons_plugin_folder_name'));
-                openEditDialog();
-                return;
-            }
-            openSelectButtonsDialog(folderName.trim());
-        });
-    }
-
-    function openSelectButtonsDialog(folderName) {
-        var selectedButtons = [];
-        var list = $('<div class="menu-edit-list"></div>');
-
-        var buttonsInFolders = getButtonsInFolders();
-        var sortedButtons = arrangeBtnsByOrder(allButtonsOriginal.slice());
-
-        sortedButtons.forEach(function(btn) {
-            var btnId = getBtnIdentifier(btn);
-            if (buttonsInFolders.indexOf(btnId) !== -1) {
-                return;
-            }
-
-            var displayName = getBtnDisplayText(btn, sortedButtons);
-            var iconElement = btn.find('svg').first();
-            var icon = iconElement.length ? iconElement.clone() : $('<svg></svg>');
-
-            var item = $('<div class="menu-edit-list__item">' +
-                         '<div class="menu-edit-list__icon"></div>' +
-                         '<div class="menu-edit-list__title">' + displayName + '</div>' +
-                         '<div class="menu-edit-list__toggle selector">' +
-                         '<svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-                         '<rect x="1.89111" y="1.78369" width="21.793" height="21.793" rx="3.5" stroke="currentColor" stroke-width="3"/>' +
-                         '<path d="M7.44873 12.9658L10.8179 16.3349L18.1269 9.02588" stroke="currentColor" stroke-width="3" class="dot" opacity="0" stroke-linecap="round"/>' +
-                         '</svg>' +
-                         '</div>' +
-                         '</div>');
-
-            item.find('.menu-edit-list__icon').append(icon);
-
-            item.find('.menu-edit-list__toggle').on('hover:enter', function() {
-                var index = selectedButtons.indexOf(btnId);
-                if (index !== -1) {
-                    selectedButtons.splice(index, 1);
-                    item.find('.dot').attr('opacity', '0');
-                } else {
-                    selectedButtons.push(btnId);
-                    item.find('.dot').attr('opacity', '1');
-                }
-            });
-
-            list.append(item);
-        });
-
-        var createBtn = $('<div class="selector folder-create-confirm">' +
-                          '<div style="text-align: center; padding: 1em;">' +
-                          getTranslation('buttons_plugin_create_folder') + ' "' + folderName + '"' +
-                          '</div>' +
-                          '</div>');
-
-        createBtn.on('hover:enter', function() {
-            if (selectedButtons.length < 2) {
-                Lampa.Noty.show(getTranslation('buttons_plugin_min_2_buttons'));
-                return;
-            }
-
-            var folder = createFolder(folderName, selectedButtons);
-            var itemOrder = getItemOrder();
-
-            if (itemOrder.length === 0) {
-                currentButtons.forEach(function(btn) {
-                    itemOrder.push({ type: 'button', id: getBtnIdentifier(btn) });
-                });
-            }
-
-            var folderAdded = false;
-            for (var i = 0; i < selectedButtons.length; i++) {
-                var btnId = selectedButtons[i];
-                for (var j = 0; j < itemOrder.length; j++) {
-                    if (itemOrder[j].type === 'button' && itemOrder[j].id === btnId) {
-                        if (!folderAdded) {
-                            itemOrder[j] = { type: 'folder', id: folder.id };
-                            folderAdded = true;
-                        } else {
-                            itemOrder.splice(j, 1);
-                            j--;
-                        }
-                        break;
-                    }
-                }
-
-                for (var k = 0; k < currentButtons.length; k++) {
-                    if (getBtnIdentifier(currentButtons[k]) === btnId) {
-                        currentButtons.splice(k, 1);
-                        break;
-                    }
-                }
-            }
-
-            if (!folderAdded) {
-                itemOrder.push({ type: 'folder', id: folder.id });
-            }
-
-            setItemOrder(itemOrder);
-            Lampa.Modal.close();
-            Lampa.Noty.show(getTranslation('buttons_plugin_folder_created') + ' "' + folderName + '"');
-
-            if (currentContainer) {
-                currentContainer.data('buttons-processed', false);
-                reorderButtons(currentContainer);
-            }
-            refreshController();
-        });
-
-        list.append(createBtn);
-
-        Lampa.Modal.open({
-            title: getTranslation('buttons_plugin_select_buttons'),
-            html: list,
-            size: 'medium',
-            scroll_to_center: true,
-            onBack: function() {
-                Lampa.Modal.close();
-                openEditDialog();
-            }
-        });
     }
 
     function openEditDialog() {
@@ -1254,24 +1028,7 @@
         var folders = getFolders();
         var itemOrder = getItemOrder();
 
-        var createFolderBtn = $('<div class="menu-edit-list__item menu-edit-list__create-folder selector">' +
-                                '<div class="menu-edit-list__icon">' +
-                                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-                                '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>' +
-                                '<line x1="12" y1="11" x2="12" y2="17"></line>' +
-                                '<line x1="9" y1="14" x2="15" y2="14"></line>' +
-                                '</svg>' +
-                                '</div>' +
-                                '<div class="menu-edit-list__title">' + getTranslation('buttons_plugin_create_folder') + '</div>' +
-                                '</div>');
-
-        createFolderBtn.on('hover:enter', function() {
-            Lampa.Modal.close();
-            openCreateFolderDialog();
-        });
-
-        // Сначала добавляем кнопку создания папки
-        list.append(createFolderBtn);
+        // Удалена кнопка создания папки
 
         // Затем добавляем заголовок с подписями
         var header = $('<div class="menu-edit-list__header">' +
@@ -1702,11 +1459,20 @@
     }
 
     function reorderButtons(container) {
+        if (isProcessing) return false;
+        isProcessing = true;
+        
         var targetContainer = container.find('.full-start-new__buttons');
-        if (!targetContainer.length) return false;
+        if (!targetContainer.length) {
+            isProcessing = false;
+            return false;
+        }
 
         currentContainer = container;
         container.find('.button--play, .button--edit-order, .button--folder').remove();
+
+        // Временная маска для скрытия оригинальных кнопок
+        targetContainer.addClass('buttons-plugin-processing');
 
         var categories = groupBtnsByType(container);
         var allButtons = []
@@ -1742,7 +1508,8 @@
         applyBtnVisibility(filteredButtons);
         applyButtonDisplayModes(filteredButtons);
 
-        targetContainer.children().detach();
+        // Сначала скрываем все существующие кнопки
+        targetContainer.find('.full-start__button').not('.button--edit-order').addClass('buttons-plugin-hidden-temp');
 
         var visibleButtons = [];
         var itemOrder = getItemOrder();
@@ -1763,6 +1530,7 @@
                 } else if (item.type === 'button') {
                     var btn = filteredButtons.find(function(b) { return getBtnIdentifier(b) === item.id; });
                     if (btn && !btn.hasClass('hidden')) {
+                        btn.removeClass('buttons-plugin-hidden-temp');
                         targetContainer.append(btn);
                         visibleButtons.push(btn);
                         addedButtons.push(getBtnIdentifier(btn));
@@ -1818,8 +1586,10 @@
                     }
 
                     if (insertBefore && insertBefore.length) {
+                        btn.removeClass('buttons-plugin-hidden-temp');
                         btn.insertBefore(insertBefore);
                     } else {
+                        btn.removeClass('buttons-plugin-hidden-temp');
                         targetContainer.append(btn);
                     }
                     visibleButtons.push(btn);
@@ -1842,19 +1612,31 @@
 
             filteredButtons.forEach(function(btn) {
                 if (!btn.hasClass('hidden')) {
+                    btn.removeClass('buttons-plugin-hidden-temp');
                     targetContainer.append(btn);
                     visibleButtons.push(btn);
                 }
             });
         }
 
+        // Удаляем временно скрытые кнопки
+        setTimeout(function() {
+            targetContainer.find('.buttons-plugin-hidden-temp').remove();
+            targetContainer.removeClass('buttons-plugin-processing');
+        }, 50);
+
         var editButton = buildEditorBtn();
         targetContainer.append(editButton);
         visibleButtons.push(editButton);
 
+        saveOrder();
+
         // Минимальный таймаут для навигации
         setTimeout(function() {
-            setupButtonNavigation(container);
+            if (currentContainer) {
+                setupButtonNavigation(container);
+            }
+            isProcessing = false;
         }, 10);
 
         return true;
@@ -1895,6 +1677,13 @@
             'flex-direction: row !important; ' +
             'flex-wrap: wrap !important; ' +
             'gap: 0.5em !important; ' +
+            'position: relative;' +
+            '}' +
+            '.full-start-new__buttons.buttons-plugin-processing { ' +
+            'min-height: 60px;' +
+            '}' +
+            '.buttons-plugin-hidden-temp { ' +
+            'display: none !important;' +
             '}' +
             '.menu-edit-list__create-folder { background: rgba(100,200,100,0.2); }' +
             '.menu-edit-list__create-folder.focus { background: rgba(100,200,100,0.3); border: 3px solid rgba(255,255,255,0.8); }' +
@@ -1954,19 +1743,18 @@
 
             var container = e.object.activity.render();
             
+            // Устанавливаем флаг обработки сразу
+            container.data('buttons-processed', true);
+            
             // Минимальная задержка для стабильности
             setTimeout(function() {
                 try {
-                    if (!container.data('buttons-processed')) {
-                        container.data('buttons-processed', true);
-                        if (reorderButtons(container)) {
-                            refreshController();
-                        }
-                    }
+                    reorderButtons(container);
+                    refreshController();
                 } catch(err) {
                     // Игнорируем ошибки
                 }
-            }, 50); // Уменьшено с 400ms до 50ms
+            }, 10); // Уменьшено до 10ms
         });
     }
 

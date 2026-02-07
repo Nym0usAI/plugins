@@ -1,6 +1,6 @@
 /** 
  * Плагин управления кнопками Lampa 
- * Версия: 1.1.2 
+ * Версия: 1.1.3 
  * Автор: @Cheeze_l 
  * 
  * Описание: 
@@ -295,7 +295,11 @@
     // Кэш для быстрого доступа к кнопкам
     function updateButtonCache(container) {
         buttonCache.clear();
+        if (!container) return;
+        
+        // Собираем ВСЕ кнопки, включая обычные и в папках
         var buttons = container.find('.full-start__button').not('.button--edit-order');
+        
         buttons.each(function() {
             var $btn = $(this);
             var id = getBtnIdentifier($btn);
@@ -305,14 +309,22 @@
 
     // Вспомогательная функция для поиска кнопки
     function findButton(btnId) {
+        // Сначала ищем в кэше
+        var cachedBtn = buttonCache.get(btnId);
+        if (cachedBtn) return cachedBtn;
+        
+        // Затем в оригинальных кнопках
         var btn = allButtonsOriginal.find(function(b) {
             return getBtnIdentifier(b) === btnId;
         });
+        
         if (!btn) {
+            // Ищем в кэшированных кнопках
             btn = allButtonsCache.find(function(b) {
                 return getBtnIdentifier(b) === btnId;
             });
         }
+        
         return btn;
     }
 
@@ -436,7 +448,9 @@
     }
 
     function groupBtnsByType(container) {
+        // Получаем ВСЕ кнопки из контейнера
         var allButtons = container.find('.full-start__button').not('.button--edit-order, .button--folder, .button--play');
+        
         var categories = {
             online: [],
             torrent: [],
@@ -451,10 +465,10 @@
         allButtons.each(function() {
             var $btn = $(this);
 
-            // Пропускаем кнопки из .person-start__bottom (info, subscribe)
-            if ($btn.closest('.person-start__bottom').length) {
-                return;
-            }
+            // НЕ пропускаем кнопки из .person-start__bottom - это важно!
+            // if ($btn.closest('.person-start__bottom').length) {
+            //     return;
+            // }
 
             if (shouldSkipBtn($btn)) return;
 
@@ -768,10 +782,29 @@
         var targetContainer = currentContainer.find('.full-start-new__buttons');
         if (!targetContainer.length) return;
 
-        targetContainer.find('.full-start__button').not('.button--edit-order').detach();
+        // Сохраняем кнопки, которые уже есть (особенно из .person-start__bottom)
+        var existingButtons = targetContainer.find('.full-start__button').not('.button--edit-order, .button--folder');
+        var preservedButtons = [];
+        
+        existingButtons.each(function() {
+            var $btn = $(this);
+            // Проверяем, является ли это специальной кнопкой (например, из .person-start__bottom)
+            if ($btn.closest('.person-start__bottom').length) {
+                preservedButtons.push($btn);
+            }
+        });
+
+        // Удаляем только кнопки управления
+        targetContainer.find('.full-start__button.button--edit-order, .full-start__button.button--folder').detach();
 
         var itemOrder = getItemOrder();
         var visibleButtons = [];
+
+        // Восстанавливаем сохраненные кнопки
+        preservedButtons.forEach(function(btn) {
+            targetContainer.append(btn);
+            visibleButtons.push(btn);
+        });
 
         if (itemOrder.length > 0) {
             var addedFolders = [];
@@ -849,12 +882,7 @@
                     if (insertBefore && insertBefore.length) {
                         btn.insertBefore(insertBefore);
                     } else {
-                        var editBtn = targetContainer.find('.button--edit-order');
-                        if (editBtn.length) {
-                            btn.insertBefore(editBtn);
-                        } else {
-                            targetContainer.append(btn);
-                        }
+                        targetContainer.append(btn);
                     }
                     visibleButtons.push(btn);
                 }
@@ -887,10 +915,17 @@
         if (editBtn.length) {
             editBtn.detach();
             targetContainer.append(editBtn);
+        } else {
+            var editButton = buildEditorBtn();
+            targetContainer.append(editButton);
+            visibleButtons.push(editButton);
         }
 
         saveOrder();
-
+        
+        // Обновляем кэш
+        updateButtonCache(currentContainer);
+        
         setupButtonNavigation(currentContainer);
     }
 
@@ -1643,7 +1678,7 @@
 
         currentContainer = container;
         
-        // Убираем старые кнопки управления
+        // Убираем только кнопки управления
         container.find('.button--edit-order, .button--folder').remove();
 
         var categories = groupBtnsByType(container);
@@ -1680,7 +1715,22 @@
         applyBtnVisibility(filteredButtons);
         applyButtonDisplayModes(filteredButtons);
 
-        targetContainer.children().detach();
+        // Сохраняем существующие кнопки (особенно из .person-start__bottom)
+        var existingButtons = targetContainer.find('.full-start__button').not('.button--edit-order, .button--folder');
+        var preservedButtons = [];
+        
+        existingButtons.each(function() {
+            var $btn = $(this);
+            preservedButtons.push($btn.clone(true, true));
+        });
+
+        // Очищаем контейнер
+        targetContainer.empty();
+
+        // Восстанавливаем сохраненные кнопки
+        preservedButtons.forEach(function(btn) {
+            targetContainer.append(btn);
+        });
 
         var visibleButtons = [];
         var itemOrder = getItemOrder();
@@ -1699,18 +1749,21 @@
                         addedFolders.push(folder.id);
                     }
                 } else if (item.type === 'button') {
-                    var btn = filteredButtons.find(function(b) { return getBtnIdentifier(b) === item.id; });
-                    if (btn && !btn.hasClass('hidden')) {
-                        targetContainer.append(btn);
-                        visibleButtons.push(btn);
-                        addedButtons.push(getBtnIdentifier(btn));
+                    var btnId = item.id;
+                    if (buttonsInFolders.indexOf(btnId) === -1) {
+                        var btn = currentButtons.find(function(b) { return getBtnIdentifier(b) === btnId; });
+                        if (btn && !btn.hasClass('hidden')) {
+                            targetContainer.append(btn);
+                            visibleButtons.push(btn);
+                            addedButtons.push(btnId);
+                        }
                     }
                 }
             });
 
-            filteredButtons.forEach(function(btn) {
+            currentButtons.forEach(function(btn) {
                 var btnId = getBtnIdentifier(btn);
-                if (addedButtons.indexOf(btnId) === -1 && !btn.hasClass('hidden')) {
+                if (addedButtons.indexOf(btnId) === -1 && !btn.hasClass('hidden') && buttonsInFolders.indexOf(btnId) === -1) {
                     var insertBefore = null;
                     var btnType = detectBtnCategory(btn);
                     var typeOrder = ['online', 'torrent', 'trailer', 'shots', 'book', 'reaction', 'subscribe', 'other'];
@@ -1772,17 +1825,18 @@
                 }
             });
         } else {
+            currentButtons.forEach(function(btn) {
+                var btnId = getBtnIdentifier(btn);
+                if (!btn.hasClass('hidden') && buttonsInFolders.indexOf(btnId) === -1) {
+                    targetContainer.append(btn);
+                    visibleButtons.push(btn);
+                }
+            });
+
             folders.forEach(function(folder) {
                 var folderBtn = createFolderButton(folder);
                 targetContainer.append(folderBtn);
                 visibleButtons.push(folderBtn);
-            });
-
-            filteredButtons.forEach(function(btn) {
-                if (!btn.hasClass('hidden')) {
-                    targetContainer.append(btn);
-                    visibleButtons.push(btn);
-                }
             });
         }
 
@@ -1889,10 +1943,24 @@
 
             var container = e.object.activity.render();
             
-            if (!container.data('buttons-processed')) {
-                container.data('buttons-processed', true);
-                reorderButtons(container);
-                refreshController();
+            // Используем небольшую задержку для гарантии загрузки всех кнопок
+            if (window.requestAnimationFrame) {
+                requestAnimationFrame(function() {
+                    if (!container.data('buttons-processed')) {
+                        container.data('buttons-processed', true);
+                        reorderButtons(container);
+                        refreshController();
+                    }
+                });
+            } else {
+                // Fallback для старых браузеров
+                setTimeout(function() {
+                    if (!container.data('buttons-processed')) {
+                        container.data('buttons-processed', true);
+                        reorderButtons(container);
+                        refreshController();
+                    }
+                }, 50);
             }
         });
     }

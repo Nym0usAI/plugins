@@ -1,6 +1,6 @@
 /** 
  * Плагин управления кнопками Lampa 
- * Версия: 1.1.3 
+ * Версия: 1.1.1 
  * Автор: @Cheeze_l 
  * 
  * Описание: 
@@ -290,41 +290,17 @@
     var allButtonsCache = [];
     var allButtonsOriginal = [];
     var currentContainer = null;
-    var buttonCache = new Map();
-
-    // Кэш для быстрого доступа к кнопкам
-    function updateButtonCache(container) {
-        buttonCache.clear();
-        if (!container) return;
-        
-        // Собираем ВСЕ кнопки, включая обычные и в папках
-        var buttons = container.find('.full-start__button').not('.button--edit-order');
-        
-        buttons.each(function() {
-            var $btn = $(this);
-            var id = getBtnIdentifier($btn);
-            buttonCache.set(id, $btn);
-        });
-    }
 
     // Вспомогательная функция для поиска кнопки
     function findButton(btnId) {
-        // Сначала ищем в кэше
-        var cachedBtn = buttonCache.get(btnId);
-        if (cachedBtn) return cachedBtn;
-        
-        // Затем в оригинальных кнопках
         var btn = allButtonsOriginal.find(function(b) {
             return getBtnIdentifier(b) === btnId;
         });
-        
         if (!btn) {
-            // Ищем в кэшированных кнопках
             btn = allButtonsCache.find(function(b) {
                 return getBtnIdentifier(b) === btnId;
             });
         }
-        
         return btn;
     }
 
@@ -448,9 +424,7 @@
     }
 
     function groupBtnsByType(container) {
-        // Получаем ВСЕ кнопки из контейнера
         var allButtons = container.find('.full-start__button').not('.button--edit-order, .button--folder, .button--play');
-        
         var categories = {
             online: [],
             torrent: [],
@@ -465,10 +439,10 @@
         allButtons.each(function() {
             var $btn = $(this);
 
-            // НЕ пропускаем кнопки из .person-start__bottom - это важно!
-            // if ($btn.closest('.person-start__bottom').length) {
-            //     return;
-            // }
+            // Пропускаем кнопки из .person-start__bottom (info, subscribe)
+            if ($btn.closest('.person-start__bottom').length) {
+                return;
+            }
 
             if (shouldSkipBtn($btn)) return;
 
@@ -562,31 +536,39 @@
             var id = getBtnIdentifier(btn);
             var mode = getButtonDisplayMode(id);
             
+            // Удаляем все классы режимов
             btn.removeClass('button-mode-1 button-mode-2 button-mode-3');
+            // Добавляем класс текущего режима
             btn.addClass('button-mode-' + mode);
             
+            // Универсальная обработка для всех кнопок с нестандартной структурой
+            // Проверяем есть ли у кнопки текстовые ноды или span элементы вне SVG
             var hasTextContent = false;
             btn.contents().each(function() {
                 if ((this.nodeType === 3 && this.nodeValue.trim()) || (this.nodeName === 'SPAN' && !$(this).parent().is('svg') && !$(this).hasClass('text-wrapper'))) {
                     hasTextContent = true;
-                    return false;
+                    return false; // break
                 }
             });
             
             if (hasTextContent) {
+                // Сначала разворачиваем все обернутые ноды
                 btn.find('.text-wrapper').each(function() {
                     $(this).replaceWith($(this).contents());
                 });
                 
+                // Получаем все текстовые ноды и span элементы (не в SVG и не специальные классы)
                 var nodesToWrap = [];
                 btn.contents().each(function() {
-                    if (this.nodeType === 3 && this.nodeValue.trim()) {
+                    if (this.nodeType === 3 && this.nodeValue.trim()) { // Text node
                         nodesToWrap.push(this);
                     } else if (this.nodeName === 'SPAN' && !$(this).parent().is('svg') && !$(this).hasClass('text-wrapper') && !$(this).hasClass('shots-view-button__title') && !$(this).hasClass('shots-view-button__count')) {
+                        // Для span элемента - добавляем класс вместо оборачивания
                         $(this).addClass('text-wrapper');
                     }
                 });
                 
+                // Оборачиваем только текстовые ноды в .text-wrapper
                 nodesToWrap.forEach(function(node) {
                     $(node).wrap('<span class="text-wrapper"></span>');
                 });
@@ -603,6 +585,7 @@
             openEditDialog();
         });
 
+        // Проверяем настройку и скрываем кнопку если редактор выключен
         if (Lampa.Storage.get('buttons_editor_enabled') === false) {
             btn.hide();
         }
@@ -631,61 +614,6 @@
             }
         });
         setItemOrder(order);
-    }
-
-    // Немедленное применение изменений
-    function applyChangesImmediately() {
-        if (!currentContainer) return;
-        
-        updateButtonCache(currentContainer);
-        
-        var hidden = getHiddenButtons();
-        var displayModes = getButtonDisplayModes();
-        var folders = getFolders();
-        
-        // Немедленно применяем изменения ко всем кнопкам
-        currentContainer.find('.full-start__button').not('.button--edit-order').each(function() {
-            var $btn = $(this);
-            var btnId = getBtnIdentifier($btn);
-            
-            // Применяем видимость немедленно
-            var isHidden = hidden.indexOf(btnId) !== -1;
-            if (isHidden) {
-                $btn.addClass('hidden');
-            } else {
-                $btn.removeClass('hidden');
-            }
-            
-            // Применяем режим отображения немедленно
-            var mode = displayModes[btnId] || 1;
-            $btn.removeClass('button-mode-1 button-mode-2 button-mode-3')
-                .addClass('button-mode-' + mode);
-        });
-        
-        // Обновляем иконки папок немедленно
-        folders.forEach(function(folder) {
-            var folderBtn = currentContainer.find('.button--folder[data-folder-id="' + folder.id + '"]');
-            if (folderBtn.length && folder.buttons.length > 0) {
-                var firstBtn = findButton(folder.buttons[0]);
-                if (firstBtn) {
-                    var icon = firstBtn.find('svg').first().clone();
-                    folderBtn.find('svg').first().replaceWith(icon);
-                }
-            }
-        });
-        
-        saveOrder();
-        
-        // Немедленное обновление навигации
-        if (window.requestAnimationFrame) {
-            requestAnimationFrame(function() {
-                if (Lampa.Controller && typeof Lampa.Controller.toggle === 'function') {
-                    try {
-                        Lampa.Controller.toggle('full_start');
-                    } catch(e) {}
-                }
-            });
-        }
     }
 
     function applyChanges() {
@@ -766,6 +694,7 @@
             setFolders(folders);
         }
 
+        // Оптимизация: получаем buttonsInFolders один раз
         var buttonsInFolders = [];
         folders.forEach(function(folder) {
             buttonsInFolders = buttonsInFolders.concat(folder.buttons);
@@ -782,29 +711,10 @@
         var targetContainer = currentContainer.find('.full-start-new__buttons');
         if (!targetContainer.length) return;
 
-        // Сохраняем кнопки, которые уже есть (особенно из .person-start__bottom)
-        var existingButtons = targetContainer.find('.full-start__button').not('.button--edit-order, .button--folder');
-        var preservedButtons = [];
-        
-        existingButtons.each(function() {
-            var $btn = $(this);
-            // Проверяем, является ли это специальной кнопкой (например, из .person-start__bottom)
-            if ($btn.closest('.person-start__bottom').length) {
-                preservedButtons.push($btn);
-            }
-        });
-
-        // Удаляем только кнопки управления
-        targetContainer.find('.full-start__button.button--edit-order, .full-start__button.button--folder').detach();
+        targetContainer.find('.full-start__button').not('.button--edit-order').detach();
 
         var itemOrder = getItemOrder();
         var visibleButtons = [];
-
-        // Восстанавливаем сохраненные кнопки
-        preservedButtons.forEach(function(btn) {
-            targetContainer.append(btn);
-            visibleButtons.push(btn);
-        });
 
         if (itemOrder.length > 0) {
             var addedFolders = [];
@@ -882,7 +792,12 @@
                     if (insertBefore && insertBefore.length) {
                         btn.insertBefore(insertBefore);
                     } else {
-                        targetContainer.append(btn);
+                        var editBtn = targetContainer.find('.button--edit-order');
+                        if (editBtn.length) {
+                            btn.insertBefore(editBtn);
+                        } else {
+                            targetContainer.append(btn);
+                        }
                     }
                     visibleButtons.push(btn);
                 }
@@ -915,18 +830,15 @@
         if (editBtn.length) {
             editBtn.detach();
             targetContainer.append(editBtn);
-        } else {
-            var editButton = buildEditorBtn();
-            targetContainer.append(editButton);
-            visibleButtons.push(editButton);
         }
 
         saveOrder();
-        
-        // Обновляем кэш
-        updateButtonCache(currentContainer);
-        
-        setupButtonNavigation(currentContainer);
+
+        setTimeout(function() {
+            if (currentContainer) {
+                setupButtonNavigation(currentContainer);
+            }
+        }, 100);
     }
 
     function capitalizeText(str) {
@@ -1357,8 +1269,10 @@
             openCreateFolderDialog();
         });
 
+        // Сначала добавляем кнопку создания папки
         list.append(createFolderBtn);
 
+        // Затем добавляем заголовок с подписями
         var header = $('<div class="menu-edit-list__header">' +
                        '<div class="menu-edit-list__header-spacer"></div>' +
                        '<div class="menu-edit-list__header-move">' + getTranslation('buttons_plugin_move') + '</div>' +
@@ -1465,11 +1379,115 @@
                 item.remove();
                 Lampa.Noty.show(getTranslation('buttons_plugin_folder_deleted'));
 
-                // Немедленное обновление интерфейса
-                if (currentContainer) {
-                    currentContainer.data('buttons-processed', false);
-                    reorderButtons(currentContainer);
-                }
+                setTimeout(function() {
+                    if (currentContainer) {
+                        currentContainer.find('.button--play, .button--edit-order, .button--folder').remove();
+                        currentContainer.data('buttons-processed', false);
+                        var targetContainer = currentContainer.find('.full-start-new__buttons');
+                        var existingButtons = targetContainer.find('.full-start__button').toArray();
+
+                        allButtonsOriginal.forEach(function(originalBtn) {
+                            var btnId = getBtnIdentifier(originalBtn);
+                            var exists = false;
+                            for (var i = 0; i < existingButtons.length; i++) {
+                                if (getBtnIdentifier($(existingButtons[i])) === btnId) {
+                                    exists = true;
+                                    break;
+                                }
+                            }
+                            if (!exists) {
+                                var clonedBtn = originalBtn.clone(true, true);
+                                targetContainer.append(clonedBtn);
+                            }
+                        });
+
+                        reorderButtons(currentContainer);
+                        setTimeout(function() {
+                            var updatedItemOrder = [];
+                            targetContainer.find('.full-start__button').not('.button--edit-order').each(function() {
+                                var $btn = $(this);
+                                if ($btn.hasClass('button--folder')) {
+                                    var fId = $btn.attr('data-folder-id');
+                                    updatedItemOrder.push({ type: 'folder', id: fId });
+                                } else {
+                                    var btnId = getBtnIdentifier($btn);
+                                    updatedItemOrder.push({ type: 'button', id: btnId });
+                                }
+                            });
+                            setItemOrder(updatedItemOrder);
+
+                            var categories = groupBtnsByType(currentContainer);
+                            var allButtons = []
+                                .concat(categories.online)
+                                .concat(categories.torrent)
+                                .concat(categories.trailer)
+                                .concat(categories.shots)
+                                .concat(categories.book)
+                                .concat(categories.reaction)
+                                .concat(categories.subscribe)
+                                .concat(categories.other);
+
+                            allButtons = arrangeBtnsByOrder(allButtons);
+                            allButtonsCache = allButtons;
+
+                            var folders = getFolders();
+                            var buttonsInFolders = [];
+                            folders.forEach(function(folder) {
+                                buttonsInFolders = buttonsInFolders.concat(folder.buttons);
+                            });
+
+                            var filteredButtons = allButtons.filter(function(btn) {
+                                return buttonsInFolders.indexOf(getBtnIdentifier(btn)) === -1;
+                            });
+
+                            currentButtons = filteredButtons;
+
+                            folderButtons.forEach(function(btnId) {
+                                var btn = allButtons.find(function(b) {
+                                    return getBtnIdentifier(b) === btnId;
+                                });
+                                if (btn) {
+                                    var btnItem = createButtonItem(btn);
+                                    var inserted = false;
+                                    list.find('.menu-edit-list__item').not('.menu-edit-list__create-folder, .folder-reset-button').each(function() {
+                                        var $existingItem = $(this);
+                                        var existingType = $existingItem.data('itemType');
+                                        if (existingType === 'button') {
+                                            var existingBtnId = $existingItem.data('buttonId');
+                                            var existingIndex = updatedItemOrder.findIndex(function(item) {
+                                                return item.type === 'button' && item.id === existingBtnId;
+                                            });
+                                            var newIndex = updatedItemOrder.findIndex(function(item) {
+                                                return item.type === 'button' && item.id === btnId;
+                                            });
+
+                                            if (newIndex !== -1 && existingIndex !== -1 && newIndex < existingIndex) {
+                                                btnItem.insertBefore($existingItem);
+                                                inserted = true;
+                                                return false;
+                                            }
+                                        }
+                                    });
+
+                                    if (!inserted) {
+                                        var resetButton = list.find('.folder-reset-button');
+                                        if (resetButton.length) {
+                                            btnItem.insertBefore(resetButton);
+                                        } else {
+                                            list.append(btnItem);
+                                        }
+                                    }
+                                }
+                            });
+
+                            setTimeout(function() {
+                                try {
+                                    Lampa.Controller.toggle('modal');
+                                } catch(e) {}
+                            }, 100);
+                        }, 100);
+                    }
+                }, 50);
             });
 
             return item;
@@ -1553,12 +1571,9 @@
                 $(this).find('.mode-number').text(newMode);
                 setButtonDisplayMode(btnId, newMode);
                 
-                // Немедленное применение к реальной кнопке
-                var cachedBtn = buttonCache.get(btnId);
-                if (cachedBtn) {
-                    cachedBtn.removeClass('button-mode-1 button-mode-2 button-mode-3')
-                             .addClass('button-mode-' + newMode);
-                }
+                // Применяем режим к кнопке
+                btn.removeClass('button-mode-1 button-mode-2 button-mode-3');
+                btn.addClass('button-mode-' + newMode);
             });
 
             item.find('.toggle').on('hover:enter', function() {
@@ -1566,24 +1581,14 @@
                 var index = hidden.indexOf(btnId);
                 if (index !== -1) {
                     hidden.splice(index, 1);
-                    $(this).find('.dot').attr('opacity', '1');
-                    $(this).closest('.menu-edit-list__item').removeClass('item-hidden');
-                    
-                    // Немедленное отображение кнопки
-                    var cachedBtn = buttonCache.get(btnId);
-                    if (cachedBtn) {
-                        cachedBtn.removeClass('hidden');
-                    }
+                    btn.removeClass('hidden');
+                    item.find('.dot').attr('opacity', '1');
+                    item.removeClass('item-hidden');
                 } else {
                     hidden.push(btnId);
-                    $(this).find('.dot').attr('opacity', '0');
-                    $(this).closest('.menu-edit-list__item').addClass('item-hidden');
-                    
-                    // Немедленное скрытие кнопки
-                    var cachedBtn = buttonCache.get(btnId);
-                    if (cachedBtn) {
-                        cachedBtn.addClass('hidden');
-                    }
+                    btn.addClass('hidden');
+                    item.find('.dot').attr('opacity', '0');
+                    item.addClass('item-hidden');
                 }
                 setHiddenButtons(hidden);
             });
@@ -1646,15 +1651,36 @@
             Lampa.Storage.set('button_hidden', []);
             Lampa.Storage.set('button_folders', []);
             Lampa.Storage.set('button_item_order', []);
-            Lampa.Storage.set('button_display_modes', {});
+            Lampa.Storage.set('button_display_modes', {}); // Сброс режимов отображения
             Lampa.Modal.close();
             Lampa.Noty.show(getTranslation('buttons_plugin_settings_reset'));
 
-            // Немедленное обновление
-            if (currentContainer) {
-                currentContainer.data('buttons-processed', false);
-                reorderButtons(currentContainer);
-            }
+            setTimeout(function() {
+                if (currentContainer) {
+                    currentContainer.find('.button--play, .button--edit-order, .button--folder').remove();
+                    currentContainer.data('buttons-processed', false);
+                    var targetContainer = currentContainer.find('.full-start-new__buttons');
+                    var existingButtons = targetContainer.find('.full-start__button').toArray();
+
+                    allButtonsOriginal.forEach(function(originalBtn) {
+                        var btnId = getBtnIdentifier(originalBtn);
+                        var exists = false;
+                        for (var i = 0; i < existingButtons.length; i++) {
+                            if (getBtnIdentifier($(existingButtons[i])) === btnId) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            var clonedBtn = originalBtn.clone(true, true);
+                            targetContainer.append(clonedBtn);
+                        }
+                    });
+
+                    reorderButtons(currentContainer);
+                    refreshController();
+                }
+            }, 100);
         });
 
         list.append(resetBtn);
@@ -1666,7 +1692,7 @@
             scroll_to_center: true,
             onBack: function() {
                 Lampa.Modal.close();
-                applyChangesImmediately();
+                applyChanges();
                 Lampa.Controller.toggle('full_start');
             }
         });
@@ -1677,9 +1703,7 @@
         if (!targetContainer.length) return false;
 
         currentContainer = container;
-        
-        // Убираем только кнопки управления
-        container.find('.button--edit-order, .button--folder').remove();
+        container.find('.button--play, .button--edit-order, .button--folder').remove();
 
         var categories = groupBtnsByType(container);
         var allButtons = []
@@ -1715,22 +1739,7 @@
         applyBtnVisibility(filteredButtons);
         applyButtonDisplayModes(filteredButtons);
 
-        // Сохраняем существующие кнопки (особенно из .person-start__bottom)
-        var existingButtons = targetContainer.find('.full-start__button').not('.button--edit-order, .button--folder');
-        var preservedButtons = [];
-        
-        existingButtons.each(function() {
-            var $btn = $(this);
-            preservedButtons.push($btn.clone(true, true));
-        });
-
-        // Очищаем контейнер
-        targetContainer.empty();
-
-        // Восстанавливаем сохраненные кнопки
-        preservedButtons.forEach(function(btn) {
-            targetContainer.append(btn);
-        });
+        targetContainer.children().detach();
 
         var visibleButtons = [];
         var itemOrder = getItemOrder();
@@ -1749,21 +1758,18 @@
                         addedFolders.push(folder.id);
                     }
                 } else if (item.type === 'button') {
-                    var btnId = item.id;
-                    if (buttonsInFolders.indexOf(btnId) === -1) {
-                        var btn = currentButtons.find(function(b) { return getBtnIdentifier(b) === btnId; });
-                        if (btn && !btn.hasClass('hidden')) {
-                            targetContainer.append(btn);
-                            visibleButtons.push(btn);
-                            addedButtons.push(btnId);
-                        }
+                    var btn = filteredButtons.find(function(b) { return getBtnIdentifier(b) === item.id; });
+                    if (btn && !btn.hasClass('hidden')) {
+                        targetContainer.append(btn);
+                        visibleButtons.push(btn);
+                        addedButtons.push(getBtnIdentifier(btn));
                     }
                 }
             });
 
-            currentButtons.forEach(function(btn) {
+            filteredButtons.forEach(function(btn) {
                 var btnId = getBtnIdentifier(btn);
-                if (addedButtons.indexOf(btnId) === -1 && !btn.hasClass('hidden') && buttonsInFolders.indexOf(btnId) === -1) {
+                if (addedButtons.indexOf(btnId) === -1 && !btn.hasClass('hidden')) {
                     var insertBefore = null;
                     var btnType = detectBtnCategory(btn);
                     var typeOrder = ['online', 'torrent', 'trailer', 'shots', 'book', 'reaction', 'subscribe', 'other'];
@@ -1825,18 +1831,17 @@
                 }
             });
         } else {
-            currentButtons.forEach(function(btn) {
-                var btnId = getBtnIdentifier(btn);
-                if (!btn.hasClass('hidden') && buttonsInFolders.indexOf(btnId) === -1) {
-                    targetContainer.append(btn);
-                    visibleButtons.push(btn);
-                }
-            });
-
             folders.forEach(function(folder) {
                 var folderBtn = createFolderButton(folder);
                 targetContainer.append(folderBtn);
                 visibleButtons.push(folderBtn);
+            });
+
+            filteredButtons.forEach(function(btn) {
+                if (!btn.hasClass('hidden')) {
+                    targetContainer.append(btn);
+                    visibleButtons.push(btn);
+                }
             });
         }
 
@@ -1844,15 +1849,16 @@
         targetContainer.append(editButton);
         visibleButtons.push(editButton);
 
-        // Обновляем кэш для мгновенных обновлений
-        updateButtonCache(container);
-        
-        setupButtonNavigation(container);
+        setTimeout(function() {
+            setupButtonNavigation(container);
+        }, 100);
 
         return true;
     }
 
     function setupButtonNavigation(container) {
+        // Lampa автоматически обрабатывает навигацию для flex-wrap: wrap
+        // Просто убедимся что контроллер обновлен
         if (Lampa.Controller && typeof Lampa.Controller.toggle === 'function') {
             try {
                 Lampa.Controller.toggle('full_start');
@@ -1863,16 +1869,16 @@
     function refreshController() {
         if (!Lampa.Controller || typeof Lampa.Controller.toggle !== 'function') return;
         
-        if (window.requestAnimationFrame) {
-            requestAnimationFrame(function() {
-                try {
-                    Lampa.Controller.toggle('full_start');
-                    if (currentContainer) {
+        setTimeout(function() {
+            try {
+                Lampa.Controller.toggle('full_start');
+                if (currentContainer) {
+                    setTimeout(function() {
                         setupButtonNavigation(currentContainer);
-                    }
-                } catch(e) {}
-            });
-        }
+                    }, 100);
+                }
+            } catch(e) {}
+        }, 50);
     }
 
     function init() {
@@ -1885,6 +1891,7 @@
             'flex-wrap: wrap !important; ' +
             'gap: 0.5em !important; ' +
             '}' +
+            '.full-start-new__buttons.buttons-loading .full-start__button { visibility: hidden !important; }' +
             '.menu-edit-list__create-folder { background: rgba(100,200,100,0.2); }' +
             '.menu-edit-list__create-folder.focus { background: rgba(100,200,100,0.3); border: 3px solid rgba(255,255,255,0.8); }' +
             '.menu-edit-list__delete { width: 2.4em; height: 2.4em; display: flex; align-items: center; justify-content: center; cursor: pointer; }' +
@@ -1942,26 +1949,28 @@
             if (e.type !== 'complite') return;
 
             var container = e.object.activity.render();
-            
-            // Используем небольшую задержку для гарантии загрузки всех кнопок
-            if (window.requestAnimationFrame) {
-                requestAnimationFrame(function() {
-                    if (!container.data('buttons-processed')) {
-                        container.data('buttons-processed', true);
-                        reorderButtons(container);
-                        refreshController();
-                    }
-                });
-            } else {
-                // Fallback для старых браузеров
-                setTimeout(function() {
-                    if (!container.data('buttons-processed')) {
-                        container.data('buttons-processed', true);
-                        reorderButtons(container);
-                        refreshController();
-                    }
-                }, 50);
+            var targetContainer = container.find('.full-start-new__buttons');
+            if (targetContainer.length) {
+                targetContainer.addClass('buttons-loading');
             }
+
+            setTimeout(function() {
+                try {
+                    if (!container.data('buttons-processed')) {
+                        container.data('buttons-processed', true);
+                        if (reorderButtons(container)) {
+                            if (targetContainer.length) {
+                                targetContainer.removeClass('buttons-loading');
+                            }
+                            refreshController();
+                        }
+                    }
+                } catch(err) {
+                    if (targetContainer.length) {
+                        targetContainer.removeClass('buttons-loading');
+                    }
+                }
+            }, 400);
         });
     }
 
@@ -1978,21 +1987,28 @@
                 name: getTranslation('buttons_plugin_button_editor')
             },
             onChange: function(value) {
-                if (value) {
-                    $('.button--edit-order').show();
-                    Lampa.Noty.show(getTranslation('buttons_plugin_button_editor_enabled'));
-                } else {
-                    $('.button--edit-order').hide();
-                    Lampa.Noty.show(getTranslation('buttons_plugin_button_editor_disabled'));
-                }
+                setTimeout(function() {
+                    var currentValue = Lampa.Storage.get('buttons_editor_enabled', true);
+                    if (currentValue) {
+                        $('.button--edit-order').show();
+                        Lampa.Noty.show(getTranslation('buttons_plugin_button_editor_enabled'));
+                    } else {
+                        $('.button--edit-order').hide();
+                        Lampa.Noty.show(getTranslation('buttons_plugin_button_editor_disabled'));
+                    }
+                }, 100);
             },
             onRender: function(element) {
-                var reactionsParam = $('div[data-name="card_interfice_reactions"]');
-                if (reactionsParam.length) {
-                    reactionsParam.after(element);
-                } else {
-                    $('div[data-name="interface_size"]').after(element);
-                }
+                setTimeout(function() {
+                    // Вставляем после "Показать реакции" в разделе "Карточка"
+                    var reactionsParam = $('div[data-name="card_interfice_reactions"]');
+                    if (reactionsParam.length) {
+                        reactionsParam.after(element);
+                    } else {
+                        // Fallback: вставляем после "Размер интерфейса" как в buttons2
+                        $('div[data-name="interface_size"]').after(element);
+                    }
+                }, 0);
             }
         });
     }

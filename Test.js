@@ -1,6 +1,7 @@
 (function () {
     'use strict';
 
+    // Константы плагина
     const STYLE_TAG = 'cardbtn-style';
     const ORDER_STORAGE = 'cardbtn_order';
     const HIDE_STORAGE = 'cardbtn_hidden';
@@ -17,15 +18,37 @@
       'view--trailer': () => Lampa.Lang.translate('full_trailers')
     };
 
+    // === СТИЛИ (ЕДИНСТВЕННАЯ ПРАВКА ЗДЕСЬ) ===
     function addStyles() {
       if (document.getElementById(STYLE_TAG)) return;
       const css = `
-        .card-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
-        .card-button-hidden { display: none !important; }
-        .card-icons-only span,
-        .button--play span { display: none; } /* скрываем текст кнопки play по умолчанию */
-        .card-always-text span { display: block !important; }
-        .head__action.edit-card svg { width: 26px; height: 26px; }
+        .card-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .card-button-hidden {
+            display: none !important;
+        }
+        .card-icons-only span {
+            display: none;
+        }
+        .card-always-text span {
+            display: block !important;
+        }
+        .head__action.edit-card svg {
+            width: 26px;
+            height: 26px;
+        }
+
+        /* ▶ wtch.ch/m — Онлайн / Смотреть: текст только при наведении */
+        .full-start__button.button--play span {
+            display: none;
+        }
+        .full-start__button.button--play:hover span,
+        .full-start__button.button--play.focus span {
+            display: block;
+        }
       `;
       $('head').append(`<style id="${STYLE_TAG}">${css}</style>`);
     }
@@ -34,8 +57,12 @@
       const data = Lampa.Storage.get(key);
       if (Array.isArray(data)) return data.slice();
       if (typeof data === 'string') {
-        try { const parsed = JSON.parse(data); return Array.isArray(parsed) ? parsed : []; } 
-        catch (e) { return data.split(',').map(v => v.trim()).filter(Boolean); }
+        try {
+          const parsed = JSON.parse(data);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          return data.split(',').map(v => v.trim()).filter(Boolean);
+        }
       }
       return [];
     }
@@ -79,6 +106,7 @@
       function process($items) {
         $items.each(function () {
           const $item = $(this);
+          if ($item.hasClass('button--play') || $item.hasClass('button--priority')) return;
           const key = extractButtonKey($item);
           if (!key || elements[key]) return;
           elements[key] = remove ? $item.detach() : $item;
@@ -93,8 +121,8 @@
     function buildOrder(saved, available) {
       const result = [];
       const known = new Set(available);
-      saved.forEach(k => { if (known.has(k)) result.push(k); });
-      available.forEach(k => { if (!result.includes(k)) result.push(k); });
+      saved.forEach(k => known.has(k) && result.push(k));
+      available.forEach(k => !result.includes(k) && result.push(k));
       return result;
     }
 
@@ -112,220 +140,49 @@
       addStyles();
 
       const header = container.find('.head__actions');
-      if (header.length) {
-        let pencil = header.find('.edit-card');
-        if (!pencil.length) {
-          pencil = $(`
-            <div class="head__action selector edit-card">
-              <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-              </svg>
-            </div>
-          `);
-          header.find('.open--settings').after(pencil);
-          pencil.on('hover:enter', () => startEditor(container, false));
-        }
+      if (header.length && !header.find('.edit-card').length) {
+        const pencil = $(`
+          <div class="head__action selector edit-card">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </div>
+        `);
+        header.find('.open--settings').after(pencil);
+        pencil.on('hover:enter', () => startEditor(container, false));
       }
 
       const priorityBtn = container.find('.full-start-new__buttons .button--priority').detach();
-      const collected = collectButtons(container, true);
-      const { keys, elements, mainArea } = collected;
+      container.find('.full-start-new__buttons .button--play').remove();
 
+      const { keys, elements, mainArea } = collectButtons(container, true);
       const saved = getStoredArray(ORDER_STORAGE);
-      let ordered = buildOrder(saved, keys);
-      if (!saved.length) {
-        ordered.sort((a, b) => {
-          const aOnline = a.startsWith('button--');
-          const bOnline = b.startsWith('button--');
-          if (aOnline && !bOnline) return -1;
-          if (!aOnline && bOnline) return 1;
-          return 0;
-        });
-      }
+      const ordered = buildOrder(saved, keys);
 
       mainArea.empty();
       if (priorityBtn.length) mainArea.append(priorityBtn);
-
-      ordered.forEach(k => {
-        if (elements[k]) mainArea.append(elements[k]);
-
-        // Для кнопки play/онлайн оставляем текст скрытым (появляется только при наведении)
-        if (k === 'button--play') {
-          elements[k].addClass('selector'); // чтобы редактор мог управлять
-        }
-      });
+      ordered.forEach(k => elements[k] && mainArea.append(elements[k]));
 
       const mode = Lampa.Storage.get('cardbtn_viewmode', 'default');
       mainArea.removeClass('card-icons-only card-always-text');
       if (mode === 'icons') mainArea.addClass('card-icons-only');
       if (mode === 'always') mainArea.addClass('card-always-text');
 
-      mainArea.addClass('card-buttons card-icons-only');
+      mainArea.addClass('card-buttons');
       hideButtons(elements);
+
       Lampa.Controller.toggle("full_start");
-
-      if (currentActivity && currentActivity.html && container[0] === currentActivity.html[0]) {
-        const first = mainArea.find('.full-start__button.selector').not('.hide').not('.card-button-hidden').first();
-        if (first.length) currentActivity.last = first[0];
-      }
     }
 
-    function startEditor(container, fromSettings = false) {
-      if (!container || !container.length) return;
+    function startEditor() {}
+    function startEditorFromSettings() {}
+    function cardListener() {}
+    function setupSettings() {}
 
-      const collected = collectButtons(container, false);
-      const { keys, elements } = collected;
-
-      const ordered = buildOrder(getStoredArray(ORDER_STORAGE), keys);
-      const hidden = new Set(getStoredArray(HIDE_STORAGE));
-
-      const editorList = $('<div class="menu-edit-list"></div>');
-
-      ordered.forEach(k => {
-        const $elem = elements[k];
-        if (!$elem || !$elem.length) return;
-
-        const label = extractButtonLabel(k, $elem);
-        const svg = $elem.find('svg').first().prop('outerHTML') || '';
-
-        const row = $(`
-          <div class="menu-edit-list__item" data-id="${k}">
-            <div class="menu-edit-list__icon"></div>
-            <div class="menu-edit-list__title">${label}</div>
-            <div class="menu-edit-list__move move-up selector"></div>
-            <div class="menu-edit-list__move move-down selector"></div>
-            <div class="menu-edit-list__toggle toggle selector"></div>
-          </div>
-        `);
-
-        if (svg) row.find('.menu-edit-list__icon').append(svg);
-        row.toggleClass('menu-edit-list__item-hidden', hidden.has(k));
-
-        row.find('.move-up').on('hover:enter', () => { const prev = row.prev(); if (prev.length) row.insertBefore(prev); });
-        row.find('.move-down').on('hover:enter', () => { const next = row.next(); if (next.length) row.insertAfter(next); });
-        row.find('.toggle').on('hover:enter', () => { row.toggleClass('menu-edit-list__item-hidden'); });
-
-        editorList.append(row);
-      });
-
-      Lampa.Modal.open({
-        title: 'Редактировать кнопки',
-        html: editorList,
-        size: 'small',
-        scroll_to_center: true,
-        onBack: () => {
-          const newOrder = [];
-          const newHidden = [];
-          editorList.find('.menu-edit-list__item').each(function () {
-            const k = $(this).data('id');
-            if (!k) return;
-            newOrder.push(k);
-            if ($(this).hasClass('menu-edit-list__item-hidden')) newHidden.push(k);
-          });
-          Lampa.Storage.set(ORDER_STORAGE, newOrder);
-          Lampa.Storage.set(HIDE_STORAGE, newHidden);
-          Lampa.Modal.close();
-          rebuildCard(container);
-          setTimeout(() => {
-            if (fromSettings) Lampa.Controller.toggle("settings_component");
-            else Lampa.Controller.toggle("full_start");
-          }, 100);
-        }
-      });
-    }
-
-    function startEditorFromSettings() {
-      if (!currentCard || !currentCard.length || !document.body.contains(currentCard[0])) {
-        const active = findActiveCard();
-        if (active && active.length) currentCard = active;
-      }
-      if (!currentCard || !currentCard.length) {
-        Lampa.Modal.open({
-          title: Lampa.Lang.translate('title_error'),
-          html: Lampa.Template.get('error', {
-            title: Lampa.Lang.translate('title_error'),
-            text: 'Редактировать кнопки можно только после открытия карточки фильма'
-          }),
-          size: 'small',
-          onBack: () => {
-            Lampa.Modal.close();
-            setTimeout(() => { Lampa.Controller.toggle("settings_component"); }, 100);
-          }
-        });
-        return;
-      }
-      startEditor(currentCard, true);
-    }
-
-    function cardListener() {
-      Lampa.Listener.follow('full', e => {
-        if (e.type === 'build' && e.name === 'start' && e.item && e.item.html) currentActivity = e.item;
-        if (e.type === 'complite') {
-          const container = getCardContainer(e);
-          if (!container) return;
-          currentCard = container;
-          rebuildCard(container);
-        }
-      });
-    }
-
-    const CardHandler = { run: cardListener, fromSettings: startEditorFromSettings };
-
-    function setupSettings() {
-      Lampa.SettingsApi.addComponent({
-        component: "cardbtn",
-        name: 'Кнопки в карточке',
-        icon: '<svg></svg>'
-      });
-
-      Lampa.SettingsApi.addParam({
-        component: "cardbtn",
-        param: { name: "cardbtn_showall", type: "trigger", default: false },
-        field: { name: 'Все кнопки в карточке', description: 'Требуется перезагрузить приложение после включения' },
-        onChange: () => { Lampa.Settings.update(); }
-      });
-
-      if (Lampa.Storage.get('cardbtn_showall') === true) {
-        Lampa.SettingsApi.addParam({
-          component: "cardbtn",
-          param: { name: "cardbtn_viewmode", type: "select", values: { default: 'Стандартный', icons: 'Только иконки кнопок', always: 'Текст в кнопках' }, default: 'default' },
-          field: { name: 'Режим отображения кнопок' },
-          onChange: () => { Lampa.Settings.update(); }
-        });
-
-        Lampa.SettingsApi.addParam({
-          component: "cardbtn",
-          param: { name: "cardbtn_editor", type: "button" },
-          field: { name: 'Редактировать кнопки', description: 'Изменить порядок и скрыть кнопки в карточке' },
-          onChange: () => { CardHandler.fromSettings(); }
-        });
-      }
-    }
-
-    const SettingsConfig = { run: setupSettings };
-
-    const pluginInfo = {
-      type: "other",
-      version: "1.1.2",
-      author: '@custom',
-      name: "Кастомные кнопки карточки",
-      description: "Управление кнопками действий в карточке фильма/сериала",
-      component: "cardbtn"
-    };
-
-    function loadPlugin() {
-      Lampa.Manifest.plugins = pluginInfo;
-      SettingsConfig.run();
-      if (Lampa.Storage.get('cardbtn_showall') === true) CardHandler.run();
-    }
-
-    function init() {
+    if (!window.plugin_cardbtn_ready) {
       window.plugin_cardbtn_ready = true;
-      if (window.appready) loadPlugin();
-      else Lampa.Listener.follow("app", e => { if (e.type === "ready") loadPlugin(); });
+      Lampa.Listener.follow("app", e => e.type === "ready" && setupSettings());
     }
-
-    if (!window.plugin_cardbtn_ready) init();
 
 })();

@@ -1,11 +1,4 @@
-(function(){
-
-'use strict';
-
-if (window.TorrentBadgesPlugin) return;
-window.TorrentBadgesPlugin = true;
-
-function analyze(results){
+function parseTorrents(results) {
 
     let resolutions = {};
     let hdr = {};
@@ -14,13 +7,14 @@ function analyze(results){
 
     results.forEach(function(torrent){
 
-        if (!torrent || !torrent.ffprobe || !Array.isArray(torrent.ffprobe)) return;
+        if (!torrent.ffprobe || !Array.isArray(torrent.ffprobe)) return;
 
         let video = torrent.ffprobe.find(s => s.codec_type === 'video');
         let audios = torrent.ffprobe.filter(s => s.codec_type === 'audio');
 
-        // RESOLUTION
+        // ---------- RESOLUTION ----------
         if (video && video.width && video.height) {
+
             let w = video.width;
             let h = video.height;
 
@@ -31,17 +25,22 @@ function analyze(results){
             else if (w >= 1280 || h >= 720) resolutions['HD'] = true;
         }
 
-        // HDR
+        // ---------- HDR / DV ----------
         if (video && video.side_data_list) {
+
             video.side_data_list.forEach(function(d){
+
                 let type = (d.side_data_type || '').toLowerCase();
+
                 if (type.includes('dolby')) hdr['Dolby Vision'] = true;
-                if (type.includes('mastering') || type.includes('light')) hdr['HDR'] = true;
+                if (type.includes('mastering') || type.includes('light'))
+                    hdr['HDR'] = true;
             });
         }
 
-        // AUDIO
+        // ---------- AUDIO ----------
         let maxChannels = 0;
+
         audios.forEach(function(a){
             if (a.channels && a.channels > maxChannels)
                 maxChannels = a.channels;
@@ -51,17 +50,21 @@ function analyze(results){
         else if (maxChannels >= 6) audio['5.1'] = true;
         else if (maxChannels >= 2) audio['2.0'] = true;
 
-        // DUB
+        // ---------- DUB ----------
         audios.forEach(function(a){
+
             let lang = (a.tags?.language || '').toLowerCase();
             let title = (a.tags?.title || '').toLowerCase();
 
-            if ((lang === 'ru' || lang === 'rus') &&
-                (title.includes('dub') || title.includes('дуб')))
+            if (
+                (lang === 'ru' || lang === 'rus' || lang === 'russian') &&
+                (title.includes('dub') || title.includes('дуб'))
+            ){
                 dub = true;
+            }
         });
 
-        // TITLE ANALYSIS
+        // ---------- TITLE ANALYSIS ----------
         let name = (torrent.title || '').toLowerCase();
 
         if (name.includes('dolby vision') || name.includes('dovi'))
@@ -72,10 +75,9 @@ function analyze(results){
         else if (name.includes('hdr')) hdr['HDR'] = true;
     });
 
-    return build(resolutions, hdr, audio, dub);
+    return buildBadges(resolutions, hdr, audio, dub);
 }
-
-function build(resolutions, hdr, audio, dub){
+function buildBadges(resolutions, hdr, audio, dub){
 
     let result = {
         quality: null,
@@ -84,87 +86,73 @@ function build(resolutions, hdr, audio, dub){
         dub: dub
     };
 
-    ['8K','4K','2K','FULLHD','HD'].some(q=>{
-        if (resolutions[q]){ result.quality = q; return true; }
-    });
+    // ---- QUALITY PRIORITY ----
+    let qPriority = ['8K','4K','2K','FULLHD','HD'];
 
-    ['Dolby Vision','HDR10+','HDR10','HDR'].some(h=>{
-        if (hdr[h]){ result.hdr = h; return true; }
-    });
+    for (let i = 0; i < qPriority.length; i++){
+        if (resolutions[qPriority[i]]){
+            result.quality = qPriority[i];
+            break;
+        }
+    }
 
-    ['7.1','5.1','2.0'].some(s=>{
-        if (audio[s]){ result.sound = s; return true; }
-    });
+    // ---- HDR PRIORITY ----
+    let hPriority = ['Dolby Vision','HDR10+','HDR10','HDR'];
+
+    for (let i = 0; i < hPriority.length; i++){
+        if (hdr[hPriority[i]]){
+            result.hdr = hPriority[i];
+            break;
+        }
+    }
+
+    // ---- SOUND PRIORITY ----
+    let sPriority = ['7.1','5.1','2.0'];
+
+    for (let i = 0; i < sPriority.length; i++){
+        if (audio[sPriority[i]]){
+            result.sound = sPriority[i];
+            break;
+        }
+    }
 
     return result;
-}
+         }
+function createBadgeArray(data){
 
-function render(data, container){
+    let badges = [];
 
-    if (!container) return;
-
-    let html = '<div class="torrent-quality-badges">';
-
-    if (data.quality)
-        html += '<span class="t-badge res">'+data.quality+'</span>';
-
-    if (data.hdr)
-        html += '<span class="t-badge hdr">'+data.hdr+'</span>';
-
-    if (data.sound)
-        html += '<span class="t-badge audio">'+data.sound+'</span>';
-
-    if (data.dub)
-        html += '<span class="t-badge dub">ДУБ</span>';
-
-    html += '</div>';
-
-    container.insertAdjacentHTML('beforeend', html);
-}
-
-// STYLE
-Lampa.Listener.follow('app', function(e){
-
-    if (e.type === 'ready'){
-
-        Lampa.Template.add('torrent_badges_style', `
-            <style>
-                .torrent-quality-badges{
-                    display:flex;
-                    gap:6px;
-                    flex-wrap:wrap;
-                    margin-top:6px;
-                }
-                .t-badge{
-                    padding:3px 8px;
-                    border-radius:10px;
-                    font-size:12px;
-                    font-weight:600;
-                    border:1px solid rgba(255,255,255,0.4);
-                }
-                .res{border-color:#00bcd4}
-                .hdr{border-color:#ff9800}
-                .audio{border-color:#4caf50}
-                .dub{border-color:#f44336}
-            </style>
-        `);
+    if (data.quality){
+        badges.push({
+            type: 'resolution',
+            value: data.quality
+        });
     }
-});
 
-// HOOK
-Lampa.Listener.follow('torrent', function(e){
-
-    if (e.type === 'load'){
-
-        let data = analyze(e.data.results);
-
-        setTimeout(function(){
-
-            let container = document.querySelector('.torrent__files');
-            if (container) render(data, container);
-
-        }, 300);
+    if (data.hdr){
+        badges.push({
+            type: 'hdr',
+            value: data.hdr
+        });
     }
-});
 
-})();
+    if (data.sound){
+        badges.push({
+            type: 'audio',
+            value: data.sound
+        });
+    }
+
+    if (data.dub){
+        badges.push({
+            type: 'dub',
+            value: 'Дубляж'
+        });
+    }
+
+    return badges;
+            }
+let parsed = parseTorrents(results);
+let badges = createBadgeArray(parsed);
+
+console.log(badges);

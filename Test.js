@@ -11,7 +11,7 @@
               Lampa.Storage.set('lampac_unic_id', unic_id);
             }
   
-            Lampa.Utils.putScriptAsync(["https://beta.l-vid.online/online.js","https://beta.l-vid.online/catalog.js"], function() {});
+            Lampa.Utils.putScriptAsync(["https://beta.l-vid.online/online.js"], function() {});
         }
     },200);
 })();

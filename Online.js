@@ -76,7 +76,7 @@ window.rch_nws[hostkey].Registry = function RchRegistry(client, startConnection)
 	  account_email: Lampa.Storage.get('account_email', ''),
 	  unic_id: Lampa.Storage.get('lampac_unic_id', ''),
 	  profile_id: Lampa.Storage.get('lampac_profile_id', ''),
-	  token: ''
+	  token: 'a46f8a8a-8878-4fa5-8554-8296ba62260d'
     }));
 
     if (client._shouldReconnect && window.rch_nws[hostkey].rchRegistry) {
@@ -312,8 +312,8 @@ window.rch_nws[hostkey].Registry = function RchRegistry(client, startConnection)
       if (uid) url = Lampa.Utils.addUrlComponent(url, 'uid=' + encodeURIComponent(uid));
     }
     if (url.indexOf('token=') == -1) {
-      var token = '';
-      if (token != '') url = Lampa.Utils.addUrlComponent(url, 'token=');
+      var token = 'a46f8a8a-8878-4fa5-8554-8296ba62260d';
+      if (token != '') url = Lampa.Utils.addUrlComponent(url, 'token=a46f8a8a-8878-4fa5-8554-8296ba62260d');
     }
     if (url.indexOf('fp=') == -1 && device_fp) {
       url = Lampa.Utils.addUrlComponent(url, 'fp=' + encodeURIComponent(device_fp));
